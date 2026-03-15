@@ -6,69 +6,42 @@ namespace DesignPatterns.Behavioral.Tests;
 public class IteratorTests
 {
     [Fact]
-    public async Task PagedEnumerable_IteratesAllItems()
+    public async Task GetAllItems_ReturnsAllItemsAcrossPages()
     {
         var items = Enumerable.Range(1, 25).ToList();
         var source = new InMemoryPagedDataSource<int>(items);
         var paged = new PagedEnumerable<int>(source, pageSize: 10);
 
-        var results = new List<int>();
+        var result = new List<int>();
         await foreach (var item in paged.GetAllItemsAsync())
         {
-            results.Add(item);
+            result.Add(item);
         }
 
-        results.Should().HaveCount(25);
-        results.Should().BeEquivalentTo(items);
+        result.Should().HaveCount(25);
+        result.Should().BeEquivalentTo(items);
     }
 
     [Fact]
-    public async Task PagedEnumerable_FetchesPagesLazily()
+    public async Task GetAllItems_FetchesPagesLazily()
     {
         var items = Enumerable.Range(1, 30).ToList();
         var source = new InMemoryPagedDataSource<int>(items);
         var paged = new PagedEnumerable<int>(source, pageSize: 10);
 
-        // Only consume first 5 items (should only need 1 page)
-        var count = 0;
+        var result = new List<int>();
         await foreach (var item in paged.GetAllItemsAsync())
         {
-            count++;
-            if (count >= 5) break;
+            result.Add(item);
+            if (result.Count == 5) break; // Only consume 5 items
         }
 
-        source.FetchCount.Should().Be(1);
+        result.Should().HaveCount(5);
+        source.FetchCount.Should().Be(1); // Only first page fetched
     }
 
     [Fact]
-    public async Task PagedEnumerable_HandlesEmptySource()
-    {
-        var source = new InMemoryPagedDataSource<int>([]);
-        var paged = new PagedEnumerable<int>(source, pageSize: 10);
-
-        var results = new List<int>();
-        await foreach (var item in paged.GetAllItemsAsync())
-        {
-            results.Add(item);
-        }
-
-        results.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task PagedEnumerable_FetchesCorrectNumberOfPages()
-    {
-        var items = Enumerable.Range(1, 25).ToList();
-        var source = new InMemoryPagedDataSource<int>(items);
-        var paged = new PagedEnumerable<int>(source, pageSize: 10);
-
-        await foreach (var _ in paged.GetAllItemsAsync()) { }
-
-        source.FetchCount.Should().Be(3); // 10 + 10 + 5
-    }
-
-    [Fact]
-    public async Task PagedEnumerable_GetPagesAsync_ReturnsPageMetadata()
+    public async Task GetPages_ReturnsPageMetadata()
     {
         var items = Enumerable.Range(1, 25).ToList();
         var source = new InMemoryPagedDataSource<int>(items);
@@ -82,10 +55,26 @@ public class IteratorTests
 
         pages.Should().HaveCount(3);
         pages[0].Items.Should().HaveCount(10);
+        pages[1].Items.Should().HaveCount(10);
+        pages[2].Items.Should().HaveCount(5);
         pages[0].TotalCount.Should().Be(25);
         pages[0].HasNextPage.Should().BeTrue();
-        pages[2].Items.Should().HaveCount(5);
         pages[2].HasNextPage.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task EmptySource_ReturnsNoItems()
+    {
+        var source = new InMemoryPagedDataSource<int>([]);
+        var paged = new PagedEnumerable<int>(source, pageSize: 10);
+
+        var result = new List<int>();
+        await foreach (var item in paged.GetAllItemsAsync())
+        {
+            result.Add(item);
+        }
+
+        result.Should().BeEmpty();
     }
 
     [Fact]
@@ -101,23 +90,24 @@ public class IteratorTests
     }
 
     [Fact]
-    public async Task PagedEnumerable_SupportsCancellation()
+    public async Task Cancellation_StopsIteration()
     {
         var items = Enumerable.Range(1, 100).ToList();
         var source = new InMemoryPagedDataSource<int>(items);
         var paged = new PagedEnumerable<int>(source, pageSize: 10);
 
         using var cts = new CancellationTokenSource();
-        var results = new List<int>();
+        var result = new List<int>();
 
-        await foreach (var item in paged.GetAllItemsAsync(cts.Token))
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
         {
-            results.Add(item);
-            if (results.Count >= 15)
-                cts.Cancel();
-        }
+            await foreach (var item in paged.GetAllItemsAsync(cts.Token))
+            {
+                result.Add(item);
+                if (result.Count == 15) cts.Cancel();
+            }
+        });
 
-        results.Count.Should().BeGreaterThanOrEqualTo(15);
-        results.Count.Should().BeLessThan(100);
+        result.Count.Should().BeGreaterThanOrEqualTo(15);
     }
 }

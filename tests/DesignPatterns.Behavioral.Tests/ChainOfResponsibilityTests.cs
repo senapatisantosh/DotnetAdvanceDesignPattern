@@ -14,60 +14,65 @@ public class ChainOfResponsibilityTests
         var director = new DirectorApprovalHandler();
         var vp = new VpApprovalHandler();
 
-        auto.SetNext(manager);
-        manager.SetNext(director);
-        director.SetNext(vp);
-
+        auto.SetNext(manager).SetNext(director).SetNext(vp);
         return auto;
     }
 
-    private static ExpenseRequest CreateRequest(decimal amount) => new()
+    private static ExpenseRequest CreateRequest(decimal amount, string description = "Test expense") => new()
     {
         Id = Guid.NewGuid(),
-        EmployeeName = "Alice",
+        EmployeeName = "John Doe",
         Amount = amount,
-        Description = "Conference travel",
+        Description = description,
         Department = "Engineering"
     };
 
-    [Fact]
-    public void Expense_Under100_AutoApproved()
+    [Theory]
+    [InlineData(50, ApprovalLevel.Auto)]
+    [InlineData(99.99, ApprovalLevel.Auto)]
+    public void SmallExpenses_AreAutoApproved(decimal amount, ApprovalLevel expectedLevel)
     {
         var chain = BuildChain();
-        var result = chain.Handle(CreateRequest(50m));
+        var result = chain.Handle(CreateRequest(amount));
 
         result.Should().NotBeNull();
         result!.IsApproved.Should().BeTrue();
-        result.Level.Should().Be(ApprovalLevel.Auto);
+        result.Level.Should().Be(expectedLevel);
     }
 
-    [Fact]
-    public void Expense_500_ApprovedByManager()
+    [Theory]
+    [InlineData(100, ApprovalLevel.Manager)]
+    [InlineData(500, ApprovalLevel.Manager)]
+    [InlineData(1000, ApprovalLevel.Manager)]
+    public void MediumExpenses_RequireManagerApproval(decimal amount, ApprovalLevel expectedLevel)
     {
         var chain = BuildChain();
-        var result = chain.Handle(CreateRequest(500m));
+        var result = chain.Handle(CreateRequest(amount));
 
         result.Should().NotBeNull();
         result!.IsApproved.Should().BeTrue();
-        result.Level.Should().Be(ApprovalLevel.Manager);
+        result.Level.Should().Be(expectedLevel);
     }
 
-    [Fact]
-    public void Expense_5000_ApprovedByDirector()
+    [Theory]
+    [InlineData(1001, ApprovalLevel.Director)]
+    [InlineData(5000, ApprovalLevel.Director)]
+    [InlineData(10000, ApprovalLevel.Director)]
+    public void LargeExpenses_RequireDirectorApproval(decimal amount, ApprovalLevel expectedLevel)
     {
         var chain = BuildChain();
-        var result = chain.Handle(CreateRequest(5_000m));
+        var result = chain.Handle(CreateRequest(amount));
 
         result.Should().NotBeNull();
         result!.IsApproved.Should().BeTrue();
-        result.Level.Should().Be(ApprovalLevel.Director);
+        result.Level.Should().Be(expectedLevel);
     }
 
     [Fact]
-    public void Expense_50000_ApprovedByVP()
+    public void VeryLargeExpenses_RequireVpApproval()
     {
         var chain = BuildChain();
-        var result = chain.Handle(CreateRequest(50_000m));
+        var result = chain.Handle(CreateRequest(50_000));
 
         result.Should().NotBeNull();
         result!.IsApproved.Should().BeTrue();
@@ -75,10 +80,10 @@ public class ChainOfResponsibilityTests
     }
 
     [Fact]
-    public void Expense_Over100000_Rejected()
+    public void ExcessiveExpenses_AreRejectedByVp()
     {
         var chain = BuildChain();
-        var result = chain.Handle(CreateRequest(200_000m));
+        var result = chain.Handle(CreateRequest(150_000));
 
         result.Should().NotBeNull();
         result!.IsApproved.Should().BeFalse();
@@ -86,45 +91,51 @@ public class ChainOfResponsibilityTests
     }
 
     [Fact]
-    public async Task Pipeline_ProcessesAllSteps()
+    public async Task Pipeline_ExecutesAllSteps()
     {
-        var persistence = new PersistenceStep();
+        var persistenceStep = new PersistenceStep();
         var pipeline = new Pipeline<ExpenseRequest>()
             .AddStep(new ValidationStep())
             .AddStep(new EnrichmentStep())
-            .AddStep(persistence);
+            .AddStep(persistenceStep);
 
-        var request = CreateRequest(250m);
+        var request = CreateRequest(250, "Office supplies");
         var result = await pipeline.ExecuteAsync(request);
 
         result.Metadata.Should().ContainKey("Validated");
         result.Metadata.Should().ContainKey("CostCenter");
         result.Metadata.Should().ContainKey("Persisted");
-        persistence.PersistedRequests.Should().HaveCount(1);
+        persistenceStep.PersistedRequests.Should().HaveCount(1);
     }
 
     [Fact]
-    public async Task Pipeline_ValidationStep_RejectsInvalidAmount()
+    public async Task Pipeline_ValidationStep_ThrowsOnInvalidData()
     {
         var pipeline = new Pipeline<ExpenseRequest>()
             .AddStep(new ValidationStep());
 
-        var request = CreateRequest(-10m);
+        var invalidRequest = new ExpenseRequest
+        {
+            Id = Guid.NewGuid(),
+            EmployeeName = "John",
+            Amount = -10,
+            Description = "Invalid",
+            Department = "Engineering"
+        };
 
-        var act = () => pipeline.ExecuteAsync(request);
+        var act = () => pipeline.ExecuteAsync(invalidRequest);
         await act.Should().ThrowAsync<ArgumentException>();
     }
 
     [Fact]
-    public async Task Pipeline_EnrichmentStep_AssignsCostCenter()
+    public async Task Pipeline_EnrichmentStep_SetsCorrectCostCenter()
     {
         var pipeline = new Pipeline<ExpenseRequest>()
             .AddStep(new EnrichmentStep());
 
-        var request = CreateRequest(100m);
+        var request = CreateRequest(100) with { Department = "Marketing" };
         var result = await pipeline.ExecuteAsync(request);
 
-        result.Metadata.Should().ContainKey("CostCenter");
-        result.Metadata["CostCenter"].Should().Be("CC-1001");
+        result.Metadata["CostCenter"].Should().Be("CC-2001");
     }
 }
