@@ -1,115 +1,121 @@
 # Facade Pattern
 
-## Memory Hook (one-liner)
-**"One button to rule them all"** — a single `GenerateReport()` call hides four subsystems working behind the scenes.
+## Memory Hook
+"One button does it all" -- provide a single simplified interface to a complex subsystem of classes.
 
 ## Problem
-Generating a business report requires coordinating multiple subsystems:
-1. **DataFetcher** — queries the appropriate database based on report type
-2. **DataAggregator** — computes summaries, groups, and statistics
-3. **ReportFormatter** — converts data into HTML, CSV, or PDF format
-4. **ReportExporter** — serializes the formatted report to bytes
-
-Without a facade, every controller, service, or background job that needs a report must know all four subsystems, call them in the correct order, and pass intermediate results between them.
+Generating a report requires coordinating four subsystems: `DataFetcher` retrieves raw data from databases and APIs, `DataAggregator` computes summaries and groupings, `ReportFormatter` styles the data into tables and charts, and `ReportExporter` renders the final output as PDF, HTML, or CSV. Client code that interacts with these subsystems directly must understand their APIs, manage their dependencies, and call them in the correct order. This couples every client to the internal structure of the reporting subsystem and makes changes to any subsystem ripple out to all clients.
 
 ## Naive Approach
-```csharp
-// Every call site duplicates this orchestration
-var data = dataFetcher.FetchData(type, start, end, dept);
-var aggregated = dataAggregator.Aggregate(data, includeSummary);
-var formatted = reportFormatter.Format(aggregated, name, format);
-var bytes = reportExporter.Export(formatted, format);
-var extension = reportExporter.GetFileExtension(format);
-// Error handling? Timing? Logging? Repeated in every call site...
-```
+Each client (controller, background job, CLI tool) manually instantiates `DataFetcher`, calls `Fetch()`, passes the result to `DataAggregator.Aggregate()`, feeds that into `ReportFormatter.Format()`, and finally calls `ReportExporter.Export()`. Every client duplicates this orchestration logic. When `DataAggregator`'s API changes, every client must be updated. Testing the report generation flow requires setting up all four subsystems.
 
 ## Pattern Solution
-Create `ReportFacade` with a single `GenerateReport(ReportRequest)` method that orchestrates all four subsystems internally. Client code provides a simple request and receives a complete result — no knowledge of subsystems required.
+Create an `IReportFacade` with a single `GenerateReport(ReportRequest request)` method. The `ReportFacade` implementation encapsulates the orchestration: it calls the `DataFetcher`, pipes data through the `DataAggregator`, formats with the `ReportFormatter`, and exports via the `ReportExporter`. Clients interact only with the facade. Internal subsystems can change, be replaced, or be reorganized without affecting client code.
 
 ## When To Use
-- A subsystem has grown complex and clients need a simplified entry point
-- You want to layer your system — facade is the entry point to each layer
-- You need to reduce coupling between clients and a complex set of classes
-- Multiple clients duplicate the same orchestration of subsystem calls
-- You want to provide a "good enough" default workflow while still allowing direct subsystem access for power users
+- A subsystem has a complex API with multiple classes that must be used together in a specific order.
+- Multiple clients duplicate the same orchestration logic for interacting with the subsystem.
+- You want to provide a simple entry point for the most common use cases while still allowing advanced clients to access subsystems directly.
+- You need to decouple client code from the internal structure of a subsystem.
+- You are integrating a third-party library and want to hide its complexity behind a domain-specific interface.
 
 ## When NOT To Use
-- The subsystem is already simple (1-2 classes) — facade adds unnecessary indirection
-- Clients legitimately need fine-grained control over every step
-- The facade becomes a "god class" doing too much — split into multiple facades
-- When the subsystem's API is already well-designed and intuitive
-- When hiding complexity prevents clients from handling errors appropriately
+- The subsystem is already simple and adding a facade creates an unnecessary layer of indirection.
+- Every client needs a different customization of the subsystem interaction (the facade becomes a leaky abstraction).
+- The facade grows into a "god class" that tries to expose every subsystem feature.
+- You are hiding essential complexity that clients genuinely need to understand and control.
+- The subsystems are independently useful and clients frequently need to use them in different combinations.
 
-## Participants
-| Participant | Role | In Our Example |
-|---|---|---|
-| **Facade** | Provides simplified interface to subsystem | `ReportFacade` |
-| **Subsystem Classes** | Implement detailed functionality | `DataFetcher`, `DataAggregator`, `ReportFormatter`, `ReportExporter` |
-| **Client** | Uses the facade instead of calling subsystems directly | Controllers, background jobs |
+## Key Participants
+
+| Participant | Role |
+|---|---|
+| `IReportFacade` (Facade Interface) | Declares the simplified `GenerateReport(ReportRequest)` method. |
+| `ReportFacade` (Concrete Facade) | Coordinates `DataFetcher`, `DataAggregator`, `ReportFormatter`, and `ReportExporter`. |
+| `DataFetcher` (Subsystem) | Retrieves raw data from databases, APIs, or files. |
+| `DataAggregator` (Subsystem) | Groups, summarizes, and computes aggregates on raw data. |
+| `ReportFormatter` (Subsystem) | Formats aggregated data into a presentable structure (tables, charts). |
+| `ReportExporter` (Subsystem) | Renders the formatted report into the requested output format (PDF, HTML, CSV). |
+| `ReportRequest` (Input DTO) | Carries report parameters: type, date range, format, filters. |
+| `ReportResult` (Output DTO) | Carries the generated report: content, format, metadata. |
+| `ReportData` (Internal DTO) | Intermediate data model passed between subsystems. |
 
 ## Variants
-- **Simple Facade**: Single method entry point (our `GenerateReport`).
-- **Transparent Facade**: Facade delegates but also exposes subsystems for power users.
-- **Facade per Use Case**: Multiple facades for different workflows (`QuickReportFacade`, `DetailedReportFacade`).
-- **Static Facade**: Utility class with static methods for stateless operations.
+- **Static Facade:** A static class with static methods. Simple but not testable or mockable.
+- **Abstract Facade (this repo):** An interface (`IReportFacade`) allows different facade implementations and is easy to mock in tests.
+- **Facade with Default Configuration:** The facade provides sensible defaults but accepts optional parameters for customization.
+- **Facade as Anti-Corruption Layer:** In DDD, a facade can translate between a bounded context's internal model and an external system's model.
 
-## Tradeoffs Table
-| Aspect | Advantage | Disadvantage |
-|---|---|---|
-| **Simplicity** | Clients need to know only one class and one method | Facade can become a god class if it grows |
-| **Decoupling** | Clients don't depend on subsystem classes | Adds another layer of indirection |
-| **Consistency** | All clients follow the same workflow | Power users may need to bypass the facade |
-| **Error Handling** | Centralized error handling and recovery | May hide important errors from clients |
-| **Testing** | Easy to test facade as integration point | Must still unit-test each subsystem |
+## Tradeoffs
+
+| Advantage | Disadvantage |
+|---|---|
+| Simplifies the API for the most common use cases. | Can become a god class if it tries to expose everything. |
+| Decouples clients from subsystem internals. | Adds an extra layer of indirection. |
+| Subsystems can be refactored without affecting clients. | May restrict access to advanced subsystem features. |
+| Single place for orchestration logic (DRY). | If overused, facades hide necessary complexity from developers. |
+| Easy to test client code that depends on the facade interface. | Facade must be updated when new subsystem capabilities are added. |
 
 ## Common Interview Questions
-1. **Facade vs Adapter?** Facade simplifies a complex subsystem into one interface; Adapter makes one interface compatible with another.
-2. **Facade vs Mediator?** Facade provides a unidirectional simplified interface; Mediator coordinates bidirectional communication between objects.
-3. **Can a facade be too thin?** Yes — if it just delegates to one class, it's pointless. Facades earn their keep by orchestrating multiple subsystems.
-4. **Facade in .NET?** `HttpClient` facades over `HttpMessageHandler` pipeline; `DbContext` facades over Entity Framework internals.
-5. **Should clients ever access subsystems directly?** Yes — facade provides a default path, but subsystems remain accessible for advanced scenarios.
+1. How does the Facade pattern differ from the Adapter pattern?
+2. When does a Facade become a "god class," and how do you prevent it?
+3. Can a Facade and a Mediator solve similar problems, and how do they differ?
 
 ## Comparison with Similar Patterns
-| Pattern | Purpose | Key Difference |
+
+| Aspect | Facade | Adapter |
 |---|---|---|
-| **Facade** | Simplify complex subsystem | New simplified interface |
-| **Adapter** | Make interfaces compatible | Wraps single class, changes interface |
-| **Mediator** | Coordinate object communication | Bidirectional, objects know mediator |
-| **Proxy** | Control access to single object | Same interface, access control |
-| **Abstract Factory** | Create families of objects | Creates objects, doesn't simplify |
+| Intent | Simplify a complex subsystem's interface. | Convert one interface to another that clients expect. |
+| Scope | Wraps multiple subsystem classes. | Wraps a single class or interface. |
+| Direction | Creates a new, simpler interface. | Makes an existing interface compatible with a required interface. |
+| Client knowledge | Client does not need to know the subsystem. | Client knows the target interface. |
+| Typical use | Orchestrating report generation, payment processing. | Integrating a third-party library with an incompatible API. |
 
-## Mermaid Diagrams
-
-### Class Diagram
+## Mermaid Class Diagram
 ```mermaid
 classDiagram
     class IReportFacade {
         <<interface>>
-        +GenerateReport(request) ReportResult
+        +GenerateReport(ReportRequest) ReportResult
     }
 
     class ReportFacade {
-        -_dataFetcher: DataFetcher
-        -_dataAggregator: DataAggregator
-        -_reportFormatter: ReportFormatter
-        -_reportExporter: ReportExporter
-        +GenerateReport(request) ReportResult
+        -DataFetcher _fetcher
+        -DataAggregator _aggregator
+        -ReportFormatter _formatter
+        -ReportExporter _exporter
+        +GenerateReport(ReportRequest) ReportResult
     }
 
     class DataFetcher {
-        +FetchData(type, start, end, dept) ReportData
+        +Fetch(source, dateRange) ReportData
     }
 
     class DataAggregator {
-        +Aggregate(data, summary) AggregatedReportData
+        +Aggregate(ReportData, groupBy) ReportData
     }
 
     class ReportFormatter {
-        +Format(data, name, format) FormattedReport
+        +Format(ReportData, style) ReportData
     }
 
     class ReportExporter {
-        +Export(report, format) byte[]
+        +Export(ReportData, format) ReportResult
+    }
+
+    class ReportRequest {
+        +ReportType : string
+        +StartDate : DateTime
+        +EndDate : DateTime
+        +Format : string
+        +Filters : Dictionary
+    }
+
+    class ReportResult {
+        +Content : string
+        +Format : string
+        +GeneratedAt : DateTime
+        +Success : bool
     }
 
     IReportFacade <|.. ReportFacade
@@ -117,9 +123,11 @@ classDiagram
     ReportFacade --> DataAggregator
     ReportFacade --> ReportFormatter
     ReportFacade --> ReportExporter
+    ReportFacade ..> ReportRequest : accepts
+    ReportFacade ..> ReportResult : returns
 ```
 
-### Sequence Diagram
+## Mermaid Sequence Diagram
 ```mermaid
 sequenceDiagram
     participant Client
@@ -127,22 +135,28 @@ sequenceDiagram
     participant Fetch as DataFetcher
     participant Agg as DataAggregator
     participant Fmt as ReportFormatter
-    participant Export as ReportExporter
+    participant Exp as ReportExporter
 
     Client->>Facade: GenerateReport(request)
-    Facade->>Fetch: FetchData(type, start, end, dept)
-    Fetch-->>Facade: ReportData
-    Facade->>Agg: Aggregate(data, includeSummary)
-    Agg-->>Facade: AggregatedReportData
-    Facade->>Fmt: Format(aggregated, name, format)
-    Fmt-->>Facade: FormattedReport
-    Facade->>Export: Export(formatted, format)
-    Export-->>Facade: byte[]
-    Facade-->>Client: ReportResult
+    Note over Facade: Orchestrates 4 subsystems
+
+    Facade->>Fetch: Fetch(source, dateRange)
+    Fetch-->>Facade: raw ReportData
+
+    Facade->>Agg: Aggregate(data, groupBy)
+    Agg-->>Facade: aggregated ReportData
+
+    Facade->>Fmt: Format(data, style)
+    Fmt-->>Facade: formatted ReportData
+
+    Facade->>Exp: Export(data, "PDF")
+    Exp-->>Facade: ReportResult
+
+    Facade-->>Client: ReportResult(content, format="PDF")
 ```
 
 ## Similar Patterns to Review Next
-- **Adapter** — Also simplifies an interface, but for a single class, not a subsystem
-- **Mediator** — Coordinates communication between objects bidirectionally
-- **Abstract Factory** — Often used behind a facade to create subsystem objects
-- **Template Method** — The facade's orchestration sequence is similar to a template method
+- **Adapter** -- converts interfaces for compatibility; Facade simplifies interfaces for convenience.
+- **Mediator** -- centralizes communication between objects; Facade centralizes access to a subsystem.
+- **Abstract Factory** -- can use a Facade to simplify the creation of related objects.
+- **Builder** -- step-by-step construction can be hidden behind a Facade for common configurations.
