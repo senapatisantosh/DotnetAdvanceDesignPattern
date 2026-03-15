@@ -1,154 +1,157 @@
 # Flyweight Pattern
 
-## Memory Hook (one-liner)
-**"Share the constant, carry the unique"** — millions of tax calculations share a handful of tax rate objects because the rate is the same for every transaction in a jurisdiction.
+## Memory Hook
+"Share what's the same, keep what's different separate" -- minimize memory by sharing immutable intrinsic state across many objects.
 
 ## Problem
-Your tax calculation engine processes millions of transactions daily. Each transaction needs a `TaxRate` object with jurisdiction code, name, rate percentage, and type. But there are only ~50 unique jurisdictions. Without sharing:
-- 1,000,000 transactions x ~80 bytes per TaxRate = **~80 MB** of duplicated objects
-- GC pressure from millions of identical short-lived objects
-
-With flyweight:
-- ~50 unique TaxRate objects x ~80 bytes = **~4 KB** total
+A tax calculation engine processes millions of transactions per day. Each transaction needs a `TaxRate` object containing the jurisdiction code, jurisdiction name, rate percentage, tax type, and effective date. Without sharing, processing 1 million California transactions creates 1 million identical `TaxRate` objects (~80 bytes each = ~80 MB of duplicated data). The system's memory footprint grows linearly with transaction volume even though there are only ~50 unique tax jurisdictions.
 
 ## Naive Approach
-```csharp
-// Every transaction creates its own TaxRate — massive duplication
-foreach (var transaction in millionTransactions)
-{
-    var taxRate = new TaxRate  // New object every time!
-    {
-        JurisdictionCode = "US-CA",
-        Rate = 0.0725m,
-        // ... same data, repeated 200,000 times for California alone
-    };
-    var tax = taxRate.CalculateTax(transaction.Amount);
-}
-```
+Each `TaxCalculation` creates its own `TaxRate` instance: `new TaxRate { JurisdictionCode = "US-CA", Rate = 0.0725m, ... }`. With 1 million transactions across 50 jurisdictions, you get 1 million `TaxRate` objects instead of 50. Memory usage is dominated by duplicated immutable data. GC pressure increases as these short-lived objects are allocated and collected.
 
 ## Pattern Solution
-Separate state into:
-- **Intrinsic state** (shared, immutable): Tax rate, jurisdiction name, type — stored in the flyweight
-- **Extrinsic state** (unique per context): Transaction amount, date, ID — passed in from outside
-
-A `TaxRateFactory` maintains a pool of shared TaxRate flyweights. Multiple TaxCalculation contexts reference the same TaxRate instance.
+Separate the **intrinsic state** (shared, immutable: jurisdiction code, name, rate, type, effective date) from the **extrinsic state** (per-transaction: taxable amount). The `TaxRate` record is the flyweight -- immutable and shared. The `TaxRateFactory` manages a pool of flyweight instances using a `ConcurrentDictionary`, returning the same `TaxRate` instance for all transactions in the same jurisdiction. The `TaxCalculation` holds a reference to the shared `TaxRate` and stores the per-transaction `TaxableAmount` locally. Result: 50 `TaxRate` objects (~4 KB) instead of 1 million (~80 MB).
 
 ## When To Use
-- An application uses a large number of objects that share significant common state
-- Most object state can be made extrinsic (stored outside the object)
-- Many groups of objects can be replaced by a few shared objects
-- The application doesn't depend on object identity (shared objects are interchangeable)
-- Memory savings outweigh the complexity of separating intrinsic/extrinsic state
+- The application creates a very large number of objects that share significant common state.
+- The shared state is immutable and can be safely reused across objects.
+- Memory usage is a bottleneck and reducing object count would meaningfully help.
+- The extrinsic (per-instance) state is small or can be computed on the fly.
+- Object identity does not matter (interchangeable instances are acceptable).
 
 ## When NOT To Use
-- Objects don't share significant state — each is unique
-- The number of objects is small (hundreds, not millions)
-- Intrinsic and extrinsic state can't be clearly separated
-- Object identity matters (each object must be a distinct instance)
-- The shared state is mutable (breaks thread safety of shared objects)
+- The number of objects is small and memory is not a concern.
+- Each object has mostly unique state with little sharing opportunity.
+- The shared state is mutable, making sharing unsafe without synchronization.
+- The complexity of separating intrinsic from extrinsic state outweighs the memory savings.
+- You are prematurely optimizing before profiling confirms memory as a bottleneck.
 
-## Participants
-| Participant | Role | In Our Example |
-|---|---|---|
-| **Flyweight** | Shared object storing intrinsic state | `TaxRate` (rate, jurisdiction, type) |
-| **Flyweight Factory** | Creates and manages shared instances | `TaxRateFactory` |
-| **Context** | Stores extrinsic state, references flyweight | `TaxCalculation` (amount, date, txn ID) |
-| **Client** | Uses flyweights through the factory | `TaxCalculationEngine` |
+## Key Participants
+
+| Participant | Role |
+|---|---|
+| `TaxRate` (Flyweight) | Immutable record with intrinsic state: jurisdiction code/name, rate, tax type, effective date. Contains `CalculateTax(taxableAmount)` that uses extrinsic state. |
+| `TaxRateFactory` (Flyweight Factory) | Manages the pool of shared `TaxRate` instances in a `ConcurrentDictionary`. Returns existing instances or creates new ones. |
+| `TaxCalculation` (Context) | Holds a reference to a shared `TaxRate` flyweight plus extrinsic state (taxable amount, transaction ID). |
+| `TaxCalculationEngine` | Processes transactions by obtaining shared `TaxRate` from the factory and creating `TaxCalculation` contexts. |
+| `TaxType` (Enum) | Categorizes tax types: Sales, VAT, GST, ExciseTax. |
 
 ## Variants
-- **Simple Flyweight**: Single shared type (our example).
-- **Unshared Flyweight**: Some instances are not shared (e.g., custom tax rates for special zones).
-- **Composite Flyweight**: Flyweight that contains other flyweights (e.g., multi-tier tax rates).
+- **Immutable Record Flyweight (this repo):** C# `record` provides value equality and immutability, making it naturally suited for flyweights.
+- **String Interning:** .NET's `string.Intern()` is a built-in flyweight for string values. The CLR maintains a pool of interned strings.
+- **Glyph Flyweight:** Classic example from the GoF book: character glyphs in a text editor share font/style (intrinsic) while position (extrinsic) differs.
+- **Enum-Based Flyweight:** When the set of flyweights is fixed and known at compile time, an enum with associated data serves as a lightweight flyweight.
 
-## Tradeoffs Table
-| Aspect | Advantage | Disadvantage |
-|---|---|---|
-| **Memory** | Dramatic reduction when sharing is high | Negligible savings if objects are already small |
-| **Performance** | Less GC pressure, better cache locality | Factory lookup adds small overhead |
-| **Thread Safety** | Immutable flyweights are inherently safe | Mutable extrinsic state needs synchronization |
-| **Complexity** | Simple concept once intrinsic/extrinsic split is clear | Must carefully separate state categories |
-| **Debugging** | Fewer unique objects to inspect | Shared references can be confusing during debugging |
+## Tradeoffs
+
+| Advantage | Disadvantage |
+|---|---|
+| Dramatic memory reduction when sharing is high (80 MB to 4 KB in this example). | Increases code complexity by separating intrinsic and extrinsic state. |
+| Thread-safe sharing with immutable flyweight instances. | Factory lookup adds a small runtime overhead per access. |
+| Reduced GC pressure from fewer object allocations. | Flyweight objects cannot carry per-instance mutable state. |
+| `ConcurrentDictionary` enables safe concurrent access. | Debugging is harder when multiple objects share the same flyweight reference. |
+| `PreloadCommonRates()` avoids lazy creation overhead under load. | Memory savings are only significant at large scale; negligible for small datasets. |
 
 ## Common Interview Questions
-1. **What makes a good flyweight candidate?** Large number of instances, significant shared immutable state, identity doesn't matter.
-2. **String interning — is that Flyweight?** Yes! `string.Intern()` is the CLR's built-in flyweight for strings.
-3. **Flyweight vs Object Pool?** Flyweight shares immutable objects read concurrently; Object Pool recycles mutable objects used sequentially.
-4. **Flyweight vs Singleton?** Singleton: one instance globally. Flyweight: one instance per unique key (many flyweights, each shared).
-5. **Flyweight in .NET?** `string` interning, `Enum` boxing cache, `ImmutableArray<T>.Empty`, font/brush caching in WPF/WinForms.
+1. How does the Flyweight pattern differ from a simple cache, and when would you use each?
+2. What is the difference between intrinsic and extrinsic state, and how do you decide what goes where?
+3. How does `string.Intern()` in .NET relate to the Flyweight pattern?
 
 ## Comparison with Similar Patterns
-| Pattern | Purpose | Key Difference |
+
+| Aspect | Flyweight | Caching |
 |---|---|---|
-| **Flyweight** | Share objects to save memory | Multiple shared instances keyed by state |
-| **Singleton** | Ensure one instance globally | One instance total, not per key |
-| **Object Pool** | Reuse expensive objects | Mutable objects, sequential reuse |
-| **Prototype** | Clone objects efficiently | Creates copies, Flyweight shares originals |
-| **Factory Method** | Create objects | Flyweight Factory is a specialized factory |
+| Purpose | Reduce memory by sharing immutable objects. | Reduce latency by storing computed results. |
+| What is shared | Intrinsic object state (e.g., tax rate data). | Computed results (e.g., API responses, query results). |
+| Mutability | Flyweight objects must be immutable. | Cached values can be mutable (with invalidation). |
+| Lifetime | Flyweight lives as long as the factory exists. | Cache entries have TTL and eviction policies. |
+| Granularity | Fine-grained (individual objects). | Coarse-grained (complete operation results). |
+| When to use | Millions of similar objects with shared state. | Expensive computations or I/O that should not be repeated. |
 
-## Mermaid Diagrams
-
-### Class Diagram
+## Mermaid Class Diagram
 ```mermaid
 classDiagram
     class TaxRate {
-        <<flyweight>>
-        +JurisdictionCode: string
-        +JurisdictionName: string
-        +Rate: decimal
-        +Type: TaxType
-        +CalculateTax(amount) decimal
-    }
-
-    class TaxCalculation {
-        <<context>>
-        +TaxRate: TaxRate
-        +TaxableAmount: decimal
-        +TransactionDate: DateTime
-        +TransactionId: string
-        +TaxAmount: decimal
-        +TotalAmount: decimal
+        <<record>>
+        +JurisdictionCode : string
+        +JurisdictionName : string
+        +Rate : decimal
+        +Type : TaxType
+        +EffectiveDate : DateTime
+        +CalculateTax(taxableAmount) decimal
     }
 
     class TaxRateFactory {
-        -_taxRates: Dictionary
-        +GetTaxRate(code) TaxRate
-        +PoolSize: int
+        -ConcurrentDictionary~string,TaxRate~ _taxRates
+        +GetTaxRate(jurisdictionCode, factory) TaxRate
+        +GetTaxRate(jurisdictionCode) TaxRate
+        +PoolSize : int
+        +GetAllCachedRates() IReadOnlyDictionary
         +PreloadCommonRates()
     }
 
-    class TaxCalculationEngine {
-        +CalculateTax(...) TaxCalculation
-        +ProcessBatch(...) List
-        +SummarizeByJurisdiction(...)
+    class TaxCalculation {
+        +TaxRate : TaxRate
+        +TaxableAmount : decimal
+        +TaxAmount : decimal
+        +TransactionId : string
     }
 
+    class TaxCalculationEngine {
+        -TaxRateFactory _factory
+        +CalculateTax(transactionId, jurisdiction, amount) TaxCalculation
+    }
+
+    class TaxType {
+        <<enumeration>>
+        Sales
+        ValueAddedTax
+        GoodsAndServicesTax
+        ExciseTax
+    }
+
+    TaxRateFactory --> "*" TaxRate : manages pool
     TaxCalculation --> TaxRate : shared reference
-    TaxRateFactory --> TaxRate : creates/caches
     TaxCalculationEngine --> TaxRateFactory : uses
-    TaxCalculationEngine --> TaxCalculation : creates
+    TaxCalculationEngine ..> TaxCalculation : creates
+    TaxRate --> TaxType
 ```
 
-### Memory Sharing Diagram
+## Mermaid Sequence Diagram
 ```mermaid
-graph LR
-    subgraph "Flyweight Pool (3 objects)"
-        CA[TaxRate US-CA 7.25%]
-        TX[TaxRate US-TX 6.25%]
-        NY[TaxRate US-NY 8.00%]
-    end
+sequenceDiagram
+    participant Engine as TaxCalculationEngine
+    participant Factory as TaxRateFactory
+    participant Pool as ConcurrentDictionary
 
-    subgraph "1,000,000 Transactions"
-        T1[TxnCalc #1 $50] --> CA
-        T2[TxnCalc #2 $120] --> CA
-        T3[TxnCalc #3 $75] --> TX
-        T4[TxnCalc #4 $200] --> NY
-        T5[TxnCalc #5 $30] --> CA
-        TN[TxnCalc #N ...] --> TX
-    end
+    Note over Engine: Transaction 1: California
+    Engine->>Factory: GetTaxRate("US-CA")
+    Factory->>Pool: GetOrAdd("US-CA")
+    Pool->>Pool: Key not found, create new TaxRate
+    Pool-->>Factory: TaxRate(US-CA, 7.25%)
+    Factory-->>Engine: TaxRate instance #1
+
+    Note over Engine: Transaction 2: California (same jurisdiction)
+    Engine->>Factory: GetTaxRate("US-CA")
+    Factory->>Pool: GetOrAdd("US-CA")
+    Pool-->>Factory: TaxRate instance #1 (same object!)
+    Factory-->>Engine: TaxRate instance #1
+
+    Note over Engine: Transaction 3: Texas
+    Engine->>Factory: GetTaxRate("US-TX")
+    Factory->>Pool: GetOrAdd("US-TX")
+    Pool->>Pool: Key not found, create new TaxRate
+    Pool-->>Factory: TaxRate(US-TX, 6.25%)
+    Factory-->>Engine: TaxRate instance #2
+
+    Note over Engine: Pool size: 2 (not 3)
+    Engine->>Engine: TaxRate #1.CalculateTax(100.00) = 7.25
+    Engine->>Engine: TaxRate #1.CalculateTax(250.00) = 18.13
+    Engine->>Engine: TaxRate #2.CalculateTax(100.00) = 6.25
 ```
 
 ## Similar Patterns to Review Next
-- **Singleton** — Special case of Flyweight with exactly one shared instance
-- **Object Pool** — Reuse pattern for mutable, expensive-to-create objects
-- **Factory Method** — The flyweight factory is a specialized factory
-- **Prototype** — Cloning vs sharing: Prototype copies, Flyweight shares
+- **Singleton** -- ensures only one instance of a class; Flyweight ensures only one instance per shared key.
+- **Prototype** -- clones objects to avoid expensive creation; Flyweight shares objects to avoid creation entirely.
+- **Object Pool** -- reuses mutable objects; Flyweight shares immutable objects.
+- **Factory Method** -- the `TaxRateFactory` uses a factory-style creation for managing the flyweight pool.
