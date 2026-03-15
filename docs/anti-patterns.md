@@ -1,6 +1,6 @@
-# Design Pattern Anti-Patterns Guide
+# Anti-Patterns: Common Mistakes and How to Avoid Them
 
-> A comprehensive guide to common misuses and abuses of design patterns in .NET applications. Recognizing these anti-patterns is just as important as knowing the patterns themselves.
+Knowing when **not** to use a pattern is just as important as knowing when to use one. This document covers the most common anti-patterns that arise from misapplying design patterns in .NET applications.
 
 ---
 
@@ -17,1124 +17,642 @@
 9. [Leaky Abstraction](#9-leaky-abstraction)
 10. [Fake CQRS](#10-fake-cqrs)
 11. [Unnecessary Mediator Layers](#11-unnecessary-mediator-layers)
-12. [Anemic Domain Model vs Rich Domain Model](#12-anemic-domain-model-vs-rich-domain-model)
+12. [Anemic Domain Model](#12-anemic-domain-model)
 
 ---
 
 ## 1. Overengineering with Patterns
 
-### Description
+### Why It Is Harmful
 
-Overengineering with patterns occurs when developers apply design patterns to problems that could be solved with straightforward, simple code. A three-line method becomes a Strategy pattern with an interface, two concrete classes, a factory, and a DI registration -- all to choose between two options.
+Adding patterns where they are not needed increases complexity, slows development, and makes the codebase harder to understand. Every pattern has a cost — more files, more indirection, more cognitive load.
 
-### Why It's Harmful
+### Symptoms
 
-- Increases codebase complexity disproportionately to the problem being solved.
-- Makes onboarding new developers harder; they must learn the pattern before understanding simple logic.
-- Adds maintenance burden: every change requires touching multiple files.
-- Slows development velocity for zero architectural benefit.
-- Creates indirection that makes debugging significantly harder.
+- A simple CRUD endpoint has 8+ classes (handler, validator, mapper, repository, specification, result, event, event handler).
+- New team members take days to trace a single request through the codebase.
+- Adding a simple field requires changes in 5+ files.
+- The architecture diagram looks impressive but the app is a basic form-over-data system.
 
-### Symptoms / Code Smells
-
-- A pattern implementation has only one concrete class and is unlikely to ever have more.
-- You spend more time wiring up the pattern than writing the actual business logic.
-- Simple `if/else` logic is replaced by a full Strategy or Chain of Responsibility.
-- The codebase has more interfaces than classes that contain real logic.
-- A colleague asks "why is this so complicated?" and you cannot give a concrete, present-tense reason.
-
-### Code Example: The Anti-Pattern
+### Code Smells
 
 ```csharp
-// ANTI-PATTERN: Strategy pattern for a simple tax calculation with only two cases
-public interface ITaxCalculationStrategy
+// OVER-ENGINEERED: Factory for two types that will never change
+public interface IGreetingFactory { IGreeting Create(string type); }
+public class GreetingFactory : IGreetingFactory
 {
-    decimal Calculate(decimal amount);
-}
-
-public class StandardTaxStrategy : ITaxCalculationStrategy
-{
-    public decimal Calculate(decimal amount) => amount * 0.2m;
-}
-
-public class ReducedTaxStrategy : ITaxCalculationStrategy
-{
-    public decimal Calculate(decimal amount) => amount * 0.05m;
-}
-
-public class TaxCalculationStrategyFactory
-{
-    public ITaxCalculationStrategy Create(string productType)
+    public IGreeting Create(string type) => type switch
     {
-        return productType switch
-        {
-            "food" => new ReducedTaxStrategy(),
-            _ => new StandardTaxStrategy()
-        };
-    }
+        "hello" => new HelloGreeting(),
+        "goodbye" => new GoodbyeGreeting(),
+        _ => throw new ArgumentException()
+    };
 }
 
-// Usage: 4 classes and an interface for two multiplications
-var strategy = _factory.Create(product.Type);
-var tax = strategy.Calculate(product.Price);
+// BETTER: Just use the type directly
+var greeting = isMorning ? "Hello" : "Goodbye";
 ```
 
-### The Better Alternative
+### Better Approach
 
-```csharp
-// SIMPLE: Just use a method
-public static decimal CalculateTax(string productType, decimal amount)
-{
-    var rate = productType == "food" ? 0.05m : 0.2m;
-    return amount * rate;
-}
-
-// If rates grow to 10+, THEN consider a pattern
-```
-
-### Takeaway
-
-> **If your pattern has one implementation and no realistic prospect of more, delete the interface and write a method.**
+- **Start simple**. Write the obvious solution first.
+- **Introduce patterns when pain appears**: duplication, tight coupling, difficult testing.
+- **Rule of three**: Wait until you have three concrete cases before abstracting.
+- **Measure the cost**: If the pattern adds more code than the problem it solves, skip it.
 
 ---
 
 ## 2. Premature Abstraction
 
-### Description
+### Why It Is Harmful
 
-Premature abstraction is the practice of creating interfaces, abstract classes, and abstraction layers before you have a concrete, proven need for them. It is driven by "what if we need to swap this later" thinking rather than present requirements.
+Abstracting too early locks you into an interface before you understand the problem space. You end up with abstractions that do not fit, forcing awkward workarounds later.
 
-### Why It's Harmful
+### Symptoms
 
-- You cannot design a good abstraction until you understand the problem space; early abstractions are almost always wrong.
-- Wrong abstractions are harder to fix than no abstractions -- they calcify into the codebase.
-- Every interface adds a navigation hop during debugging (F12 goes to the interface, not the implementation).
-- Violates YAGNI (You Aren't Gonna Need It).
-- Creates a false sense of flexibility that rarely gets exercised.
+- Interfaces with only one implementation and no realistic prospect of a second.
+- Abstract base classes created "just in case" someone needs to extend them.
+- Generic type parameters on classes that are only ever used with one type.
+- `IService`, `IManager`, `IHelper` interfaces with no clear contract.
 
-### Symptoms / Code Smells
-
-- Every class has a matching `I{ClassName}` interface with an identical method set.
-- Interfaces have exactly one implementation and no tests mock them.
-- You hear "we might need to swap the database someday" as justification, but it has never happened in the project's lifetime.
-- Abstract base classes exist with a single derived class.
-- Generic type parameters used where a concrete type would suffice.
-
-### Code Example: The Anti-Pattern
+### Code Smells
 
 ```csharp
-// ANTI-PATTERN: Interface created "just in case"
-public interface IEmailSender
-{
-    Task SendAsync(string to, string subject, string body);
-}
+// PREMATURE: Interface for a class that will never have another implementation
+public interface IEmailSender { Task Send(Email email); }
+public class SmtpEmailSender : IEmailSender { /* only impl ever */ }
 
-public interface IEmailSenderFactory
-{
-    IEmailSender Create();
-}
-
-public interface IEmailTemplateRenderer
-{
-    string Render(string templateName, object model);
-}
-
-// Only one implementation exists for each, registered in DI
-public class SmtpEmailSender : IEmailSender { /* ... */ }
-public class RazorEmailTemplateRenderer : IEmailTemplateRenderer { /* ... */ }
-public class EmailSenderFactory : IEmailSenderFactory { /* ... */ }
-
-// 3 interfaces, 3 classes, for sending an email
-// Nobody has ever swapped any of these implementations
+// The interface was created because "you might need another implementation later."
+// But SMTP is the only sender and the interface just adds noise.
 ```
 
-### The Better Alternative
+### Better Approach
 
-```csharp
-// START CONCRETE: Extract an interface when you actually need a second implementation
-public class EmailSender
-{
-    public async Task SendAsync(string to, string subject, string body)
-    {
-        // SMTP logic here
-    }
-}
-
-// When (and IF) you need a SendGrid implementation, THEN extract IEmailSender.
-// The refactoring takes 5 minutes with modern IDEs.
-```
-
-### Takeaway
-
-> **Extract an interface when you have two implementations, not when you imagine you might.**
+- **YAGNI** (You Ain't Gonna Need It) — Do not add abstraction until you have a concrete need.
+- Create interfaces when you need **testability** (mocking), **polymorphism** (multiple implementations), or **decoupling** (cross-layer boundaries).
+- If you create an interface for testing only, consider whether an integration test would be better.
 
 ---
 
 ## 3. Singleton Abuse
 
-### Description
+### Why It Is Harmful
 
-Singleton abuse occurs when the Singleton pattern is used as a mechanism to create globally accessible mutable state, rather than for its intended purpose of ensuring a single instance of a resource that genuinely requires exclusivity (e.g., a thread pool, a hardware interface).
+Overusing Singleton creates hidden global state, makes testing difficult, introduces tight coupling, and can cause concurrency bugs. It is the most misused GoF pattern.
 
-### Why It's Harmful
+### Symptoms
 
-- Introduces hidden global state that makes behavior unpredictable.
-- Makes unit testing extremely difficult: tests share state and cannot run in parallel.
-- Creates tight coupling: every consumer is coupled to the singleton's concrete class.
-- Violates the Single Responsibility Principle by combining "ensure one instance" with business logic.
-- Hides dependencies -- callers use `MyService.Instance` instead of receiving the dependency explicitly.
+- Multiple `Instance` properties accessed throughout the codebase.
+- Difficulty unit testing because singletons carry state between tests.
+- Thread-safety bugs from shared mutable state.
+- "God singletons" that accumulate responsibilities over time.
+- Static access patterns like `Logger.Instance.Log()` scattered everywhere.
 
-### Symptoms / Code Smells
-
-- `static Instance` properties scattered throughout the codebase.
-- Test failures that only happen when tests run in a specific order.
-- "Reset" methods on singletons used to clean up between tests.
-- Singletons holding mutable collections, configuration, or session state.
-- You cannot instantiate a class in isolation because it depends on a singleton.
-
-### Code Example: The Anti-Pattern
+### Code Smells
 
 ```csharp
-// ANTI-PATTERN: Singleton as global mutable state
-public class UserSession
+// ABUSED: Singleton with mutable state and static access
+public class AppState
 {
-    private static readonly Lazy<UserSession> _instance =
-        new(() => new UserSession());
+    private static AppState _instance;
+    public static AppState Instance => _instance ??= new AppState();
 
-    public static UserSession Instance => _instance.Value;
-
-    public string CurrentUserId { get; set; }
-    public List<string> Permissions { get; set; } = new();
-    public Dictionary<string, object> SessionData { get; } = new();
-
-    private UserSession() { }
+    public User CurrentUser { get; set; }      // Mutable shared state!
+    public string ConnectionString { get; set; } // Configuration as global state!
+    public List<string> AuditLog { get; } = []; // Growing shared collection!
 }
 
-// Usage: hidden dependency, untestable
-public class OrderService
-{
-    public void PlaceOrder(Order order)
-    {
-        // Where does this dependency come from? Nobody knows from the constructor.
-        if (!UserSession.Instance.Permissions.Contains("place_orders"))
-            throw new UnauthorizedException();
-
-        order.PlacedBy = UserSession.Instance.CurrentUserId;
-    }
-}
+// Used throughout: AppState.Instance.CurrentUser — untestable, tightly coupled
 ```
 
-### The Better Alternative
+### Better Approach
 
 ```csharp
-// BETTER: Use DI with a scoped lifetime
-public interface IUserContext
-{
-    string UserId { get; }
-    IReadOnlyList<string> Permissions { get; }
-}
+// BETTER: DI container manages lifetime; inject interfaces
+services.AddSingleton<ITelemetryRegistry, TelemetryRegistry>();
+services.AddScoped<ICurrentUserAccessor, HttpContextUserAccessor>();
+services.AddSingleton<IConfiguration>(configuration);
 
-public class HttpUserContext : IUserContext
-{
-    private readonly IHttpContextAccessor _accessor;
-    public HttpUserContext(IHttpContextAccessor accessor) => _accessor = accessor;
-    public string UserId => _accessor.HttpContext?.User?.FindFirst("sub")?.Value;
-    public IReadOnlyList<string> Permissions => /* extract from claims */;
-}
-
-// Register as scoped -- one instance per request, not per application
-services.AddScoped<IUserContext, HttpUserContext>();
-
-public class OrderService
-{
-    private readonly IUserContext _userContext; // Explicit dependency
-
-    public OrderService(IUserContext userContext) => _userContext = userContext;
-
-    public void PlaceOrder(Order order)
-    {
-        if (!_userContext.Permissions.Contains("place_orders"))
-            throw new UnauthorizedException();
-
-        order.PlacedBy = _userContext.UserId;
-    }
-}
+// Now injectable, testable, and lifetime is managed centrally
+public class OrderService(ITelemetryRegistry telemetry) { }
 ```
 
-### Takeaway
-
-> **If your singleton holds mutable state, it is global state in disguise -- use scoped DI registration instead.**
+**Guidelines**:
+- Use DI singleton lifetime (`AddSingleton`) instead of the GoF pattern.
+- Singletons should be **stateless** or have **immutable state** only.
+- If a singleton accumulates responsibilities, it is becoming a God Object.
+- Ask: "Would this break if two instances existed?" If no, it should not be a singleton.
 
 ---
 
 ## 4. Service Locator Anti-Pattern
 
-### Description
+### Why It Is Harmful
 
-The Service Locator pattern provides a centralized registry from which any class can request any dependency at runtime. While it solves the dependency resolution problem, it does so by hiding the dependency graph from consumers and making it impossible to know what a class needs without reading its entire implementation.
+Service Locator hides dependencies, making classes harder to understand, test, and maintain. Instead of declaring what a class needs in its constructor, it reaches into a global container at runtime.
 
-### Why It's Harmful
+### Symptoms
 
-- **Hides dependencies**: The constructor does not reveal what the class needs. You must read every method to discover calls to `serviceLocator.GetService<T>()`.
-- **Breaks compile-time safety**: Missing registrations only surface at runtime, often in production.
-- **Makes testing harder**: You must set up the entire service locator with all transitive dependencies, rather than passing in focused mocks.
-- **Violates the Dependency Inversion Principle**: Classes depend on the locator (a concrete mechanism) rather than on abstractions passed to them.
-- **Defeats static analysis**: Tools cannot trace the dependency graph.
+- `IServiceProvider` injected into business logic classes.
+- `GetService<T>()` or `GetRequiredService<T>()` called inside methods.
+- Constructor has few parameters but the class uses many services.
+- Runtime failures instead of compile-time errors when dependencies are missing.
 
-### Symptoms / Code Smells
-
-- `IServiceProvider` or a custom `ServiceLocator` injected into business logic classes.
-- `GetService<T>()` or `GetRequiredService<T>()` calls outside of composition roots, factories, or middleware.
-- NullReferenceExceptions in production caused by unregistered services.
-- Test setup that involves configuring a full DI container.
-
-### Code Example: The Anti-Pattern
+### Code Smells
 
 ```csharp
-// ANTI-PATTERN: Service Locator injected into business logic
-public class OrderProcessor
+// ANTI-PATTERN: Service Locator
+public class OrderService
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceProvider _provider;
 
-    public OrderProcessor(IServiceProvider serviceProvider)
+    public OrderService(IServiceProvider provider)
     {
-        _serviceProvider = serviceProvider;
+        _provider = provider; // Hides real dependencies
     }
 
-    public async Task ProcessAsync(Order order)
+    public void ProcessOrder(Order order)
     {
-        // What does this class depend on? You can't tell from the constructor.
-        var validator = _serviceProvider.GetRequiredService<IOrderValidator>();
-        var repository = _serviceProvider.GetRequiredService<IOrderRepository>();
-        var emailSender = _serviceProvider.GetRequiredService<IEmailSender>();
-        var logger = _serviceProvider.GetRequiredService<ILogger<OrderProcessor>>();
-
-        if (!validator.Validate(order))
-            return;
-
-        await repository.SaveAsync(order);
-        await emailSender.SendConfirmationAsync(order);
-        logger.LogInformation("Order {OrderId} processed", order.Id);
+        var repo = _provider.GetRequiredService<IOrderRepository>();
+        var emailer = _provider.GetRequiredService<IEmailSender>();
+        var logger = _provider.GetRequiredService<ILogger<OrderService>>();
+        // Dependencies are invisible from the constructor
     }
 }
 ```
 
-### The Better Alternative
+### Better Approach
 
 ```csharp
-// BETTER: Constructor injection -- dependencies are explicit
-public class OrderProcessor
+// BETTER: Explicit constructor injection
+public class OrderService(
+    IOrderRepository repository,
+    IEmailSender emailSender,
+    ILogger<OrderService> logger)
 {
-    private readonly IOrderValidator _validator;
-    private readonly IOrderRepository _repository;
-    private readonly IEmailSender _emailSender;
-    private readonly ILogger<OrderProcessor> _logger;
-
-    public OrderProcessor(
-        IOrderValidator validator,
-        IOrderRepository repository,
-        IEmailSender emailSender,
-        ILogger<OrderProcessor> logger)
+    public void ProcessOrder(Order order)
     {
-        _validator = validator;
-        _repository = repository;
-        _emailSender = emailSender;
-        _logger = logger;
-    }
-
-    public async Task ProcessAsync(Order order)
-    {
-        if (!_validator.Validate(order))
-            return;
-
-        await _repository.SaveAsync(order);
-        await _emailSender.SendConfirmationAsync(order);
-        _logger.LogInformation("Order {OrderId} processed", order.Id);
+        // Dependencies are visible, testable, and validated at startup
     }
 }
 ```
 
-### Takeaway
-
-> **`IServiceProvider` belongs in your composition root, not in your business logic -- inject the dependency, not the container.**
+**When Service Locator is acceptable**:
+- In factory classes that need to resolve types at runtime based on input.
+- In framework/infrastructure code (middleware, filters) where DI is limited.
+- Never in domain or application logic.
 
 ---
 
 ## 5. God Factory
 
-### Description
+### Why It Is Harmful
 
-A God Factory is a single factory class that is responsible for creating many unrelated types. It grows over time as developers add "just one more" creation method, eventually becoming a monolithic class that violates the Single Responsibility Principle and becomes a bottleneck for changes.
+A single factory that creates everything becomes a maintenance bottleneck, violates the Single Responsibility Principle, and grows without bound.
 
-### Why It's Harmful
+### Symptoms
 
-- Violates SRP: one class has reasons to change for every type it creates.
-- Creates a coupling hub: every consumer depends on the factory, and the factory depends on everything.
-- Makes the DI container redundant -- the factory *becomes* a hand-rolled container.
-- Merge conflicts are frequent because many developers touch the same file.
-- Testing requires mocking a massive interface.
+- One factory class with dozens of `Create` methods.
+- Every new type requires modifying the factory.
+- The factory has dependencies on every part of the system.
+- Factory class is hundreds or thousands of lines long.
 
-### Symptoms / Code Smells
-
-- A factory with 10+ `Create` methods.
-- The factory's constructor has 15+ dependencies (one for each type it can create).
-- New feature requests always require modifying the factory.
-- The factory class is over 200 lines.
-- Method names like `CreateUserService`, `CreateOrderValidator`, `CreateEmailSender` in a single class.
-
-### Code Example: The Anti-Pattern
+### Code Smells
 
 ```csharp
-// ANTI-PATTERN: One factory to rule them all
+// ANTI-PATTERN: God Factory
 public class ServiceFactory
 {
-    private readonly IConfiguration _config;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly IDbConnectionFactory _dbFactory;
-    // ... 12 more dependencies
-
-    public ServiceFactory(IConfiguration config, ILoggerFactory loggerFactory,
-        IDbConnectionFactory dbFactory /* ... */)
-    {
-        _config = config;
-        _loggerFactory = loggerFactory;
-        _dbFactory = dbFactory;
-    }
-
-    public IOrderService CreateOrderService() => new OrderService(/* ... */);
-    public IUserService CreateUserService() => new UserService(/* ... */);
-    public IPaymentProcessor CreatePaymentProcessor(string provider) => /* ... */;
-    public IEmailSender CreateEmailSender() => /* ... */;
-    public IReportGenerator CreateReportGenerator(ReportType type) => /* ... */;
-    public INotificationService CreateNotificationService() => /* ... */;
-    // ... 10 more methods, growing every sprint
+    public IPaymentProcessor CreatePaymentProcessor(string type) { /* ... */ }
+    public IShippingCarrier CreateShippingCarrier(string type) { /* ... */ }
+    public INotificationSender CreateNotificationSender(string type) { /* ... */ }
+    public IReportGenerator CreateReportGenerator(string type) { /* ... */ }
+    public IValidator CreateValidator(string type) { /* ... */ }
+    // ... 20 more Create methods
 }
 ```
 
-### The Better Alternative
+### Better Approach
 
-```csharp
-// BETTER: Focused factories for each family, or just use DI
-// Factory only where runtime decisions are needed:
-public class PaymentProcessorFactory
-{
-    private readonly IServiceProvider _sp;
-
-    public PaymentProcessorFactory(IServiceProvider sp) => _sp = sp;
-
-    public IPaymentProcessor Create(string provider) => provider switch
-    {
-        "stripe" => _sp.GetRequiredService<StripeProcessor>(),
-        "paypal" => _sp.GetRequiredService<PayPalProcessor>(),
-        _ => throw new ArgumentException($"Unknown provider: {provider}")
-    };
-}
-
-// For services that don't need runtime selection, just inject them directly:
-services.AddScoped<IOrderService, OrderService>();
-services.AddScoped<IUserService, UserService>();
-```
-
-### Takeaway
-
-> **A factory should create one family of related objects -- if it creates everything, it's a disguised service locator.**
+- **One factory per product family** — `PaymentProcessorFactory`, `ShippingCarrierFactory`.
+- Use **DI container** for resolution: `IEnumerable<IPaymentProcessor>` with keyed services.
+- Use **generic factory interfaces**: `IFactory<TInput, TOutput>`.
+- Each factory is small, focused, and follows SRP.
 
 ---
 
 ## 6. Inheritance Misuse
 
-### Description
+### Why It Is Harmful
 
-Inheritance misuse manifests as deep inheritance hierarchies (3+ levels) used to share code rather than to model genuine "is-a" relationships. Developers use inheritance for code reuse, creating fragile base classes and hierarchies that are difficult to modify without cascading side effects.
+Using inheritance for code reuse (instead of polymorphism) creates fragile hierarchies, violates Liskov Substitution, and makes refactoring painful.
 
-### Why It's Harmful
+### Symptoms
 
-- **Fragile Base Class Problem**: Changes to a base class can break all derived classes in unexpected ways.
-- **Tight coupling**: Derived classes are intimately coupled to the base class's implementation details.
-- **Inflexible**: A class can only inherit from one base (in C#), so the hierarchy decision is permanent.
-- **Liskov Substitution Violations**: Derived classes often override methods in ways that break the base contract.
-- **Combinatorial explosion**: If you have N dimensions of variation, inheritance requires N! classes.
+- Deep inheritance chains (4+ levels).
+- Base classes with `virtual` methods that subclasses override to do nothing.
+- "Is-a" relationships that are actually "has-a" relationships.
+- `base.DoSomething()` calls scattered throughout overrides.
+- Inheriting from a class just to reuse two utility methods.
 
-### Symptoms / Code Smells
-
-- Inheritance hierarchies deeper than 2 levels.
-- Base classes with `virtual` methods that most derived classes override to do nothing.
-- `protected` fields and methods used extensively for "sharing" state.
-- Derived classes that throw `NotSupportedException` for inherited methods.
-- You need a combination of behaviors from two branches of the hierarchy.
-
-### Code Example: The Anti-Pattern
+### Code Smells
 
 ```csharp
-// ANTI-PATTERN: Deep hierarchy for code reuse
-public abstract class BaseEntity
+// ANTI-PATTERN: Inheritance for code reuse
+public class BaseService
 {
-    public Guid Id { get; set; }
-    public DateTime CreatedAt { get; set; }
-    protected virtual void Validate() { }
+    protected void LogInfo(string message) { /* ... */ }
+    protected void SendEmail(string to, string body) { /* ... */ }
+    protected decimal CalculateTax(decimal amount) { /* ... */ }
 }
 
-public abstract class AuditableEntity : BaseEntity
+public class OrderService : BaseService    // Order "is-a" BaseService? No.
 {
-    public string CreatedBy { get; set; }
-    public string ModifiedBy { get; set; }
-    public DateTime? ModifiedAt { get; set; }
-    protected virtual void AuditChange(string userId) { /* ... */ }
+    public void Process() { LogInfo("..."); SendEmail("...", "..."); }
 }
 
-public abstract class SoftDeletableAuditableEntity : AuditableEntity
+public class InvoiceService : BaseService  // Invoice "is-a" BaseService? No.
 {
-    public bool IsDeleted { get; set; }
-    public DateTime? DeletedAt { get; set; }
-    public virtual void SoftDelete() { IsDeleted = true; DeletedAt = DateTime.UtcNow; }
-}
-
-public abstract class TenantScopedSoftDeletableAuditableEntity : SoftDeletableAuditableEntity
-{
-    public Guid TenantId { get; set; }
-    protected virtual void ValidateTenant() { /* ... */ }
-}
-
-// Now every entity must decide where in this 4-level hierarchy it belongs.
-// What if you need tenant-scoped but NOT soft-deletable? You can't.
-public class Order : TenantScopedSoftDeletableAuditableEntity
-{
-    // Inherits 4 levels of behavior whether it wants it or not
+    public void Generate() { LogInfo("..."); CalculateTax(100); }
 }
 ```
 
-### The Better Alternative
+### Better Approach
 
 ```csharp
-// BETTER: Composition with interfaces and mixins
-public interface IAuditable
+// BETTER: Composition over inheritance
+public class OrderService(
+    ILogger<OrderService> logger,
+    IEmailSender emailSender)
 {
-    string CreatedBy { get; set; }
-    DateTime? ModifiedAt { get; set; }
-}
-
-public interface ISoftDeletable
-{
-    bool IsDeleted { get; set; }
-    DateTime? DeletedAt { get; set; }
-}
-
-public interface ITenantScoped
-{
-    Guid TenantId { get; set; }
-}
-
-// Compose only what you need:
-public class Order : IAuditable, ITenantScoped
-{
-    public Guid Id { get; set; }
-    public string CreatedBy { get; set; }
-    public DateTime? ModifiedAt { get; set; }
-    public Guid TenantId { get; set; }
-    // No soft-delete: we don't need it for orders
-}
-
-// Shared behavior via extension methods or EF Core interceptors, not base classes
-public static class SoftDeleteExtensions
-{
-    public static void SoftDelete(this ISoftDeletable entity)
+    public void Process()
     {
-        entity.IsDeleted = true;
-        entity.DeletedAt = DateTime.UtcNow;
+        logger.LogInformation("...");
+        emailSender.Send("...", "...");
     }
 }
 ```
 
-### Takeaway
-
-> **Favor composition over inheritance -- if you are inheriting to share code rather than to model an "is-a" relationship, use interfaces and composition instead.**
+**When inheritance IS appropriate**:
+- Template Method pattern (well-defined algorithm skeleton).
+- True "is-a" relationships with Liskov Substitution compliance.
+- Framework extension points designed for inheritance (e.g., `ControllerBase`).
 
 ---
 
 ## 7. Pattern Obsession
 
-### Description
+### Why It Is Harmful
 
-Pattern obsession is the compulsion to use a named design pattern for every piece of code, regardless of whether the problem warrants it. It often stems from recently learning patterns and wanting to apply them everywhere, or from a belief that "patterned code" is inherently superior.
+Treating patterns as goals rather than tools leads to code that is harder to read, harder to debug, and harder to change. Pattern-obsessed code often has more architecture than logic.
 
-### Why It's Harmful
+### Symptoms
 
-- Introduces unnecessary abstraction layers that obscure simple logic.
-- Inflates the codebase: what should be 50 lines becomes 500 lines across 12 files.
-- Creates a vocabulary barrier: new team members must learn the pattern taxonomy before reading code.
-- Shifts focus from solving the business problem to satisfying the pattern's structure.
-- Every pattern has a cost (indirection, complexity); without a benefit, you only get the cost.
+- Every class, no matter how simple, implements a GoF pattern.
+- Team discussions focus on "which pattern should we use?" rather than "what problem are we solving?"
+- Code reviews reject simple solutions in favor of pattern-based ones.
+- The codebase has more interfaces than implementations.
+- Pattern names appear in class names unnecessarily: `OrderFactoryStrategyDecoratorProxy`.
 
-### Symptoms / Code Smells
+### Code Smells
 
-- Developers discuss solutions in terms of which pattern to apply rather than what the code should do.
-- Code reviews insist on pattern names rather than evaluating whether the code is clear and correct.
-- A simple CRUD controller has a mediator, a command, a handler, a validator, a repository, a unit of work, a specification, and a mapper -- for saving a single record.
-- The word "pattern" appears in commit messages more than the business domain.
-- Architectural diagrams show pattern names but not data flow.
+- Using Strategy for a single algorithm that will never change.
+- Using Observer for one subscriber.
+- Using Command for operations that never need undo, queuing, or logging.
+- Using Decorator to add one behavior that could be a simple method call.
 
-### Code Example: The Anti-Pattern
+### Better Approach
 
-```csharp
-// ANTI-PATTERN: Pattern salad for updating a user's email address
-// 1. Command
-public record UpdateEmailCommand(Guid UserId, string NewEmail) : IRequest<Result>;
-
-// 2. Validator
-public class UpdateEmailCommandValidator : AbstractValidator<UpdateEmailCommand>
-{
-    public UpdateEmailCommandValidator()
-    {
-        RuleFor(x => x.NewEmail).EmailAddress();
-    }
-}
-
-// 3. Handler
-public class UpdateEmailCommandHandler : IRequestHandler<UpdateEmailCommand, Result>
-{
-    private readonly IUnitOfWork _uow;
-    private readonly ISpecification<User> _spec;
-
-    public UpdateEmailCommandHandler(IUnitOfWork uow) => _uow = uow;
-
-    public async Task<Result> Handle(UpdateEmailCommand request, CancellationToken ct)
-    {
-        var user = await _uow.Users.FindBySpecAsync(new UserByIdSpec(request.UserId));
-        user.UpdateEmail(request.NewEmail);    // Rich domain method
-        await _uow.CommitAsync(ct);
-        return Result.Success();
-    }
-}
-
-// 4. Specification
-public class UserByIdSpec : Specification<User>
-{
-    public UserByIdSpec(Guid id) => Query.Where(u => u.Id == id);
-}
-
-// 5. Domain Event
-public record EmailUpdatedEvent(Guid UserId, string OldEmail, string NewEmail) : IDomainEvent;
-
-// Total: 5 files, ~80 lines for changing one column in one table
-```
-
-### The Better Alternative
-
-```csharp
-// BETTER: Appropriate complexity for the problem
-public class UserService
-{
-    private readonly AppDbContext _db;
-
-    public UserService(AppDbContext db) => _db = db;
-
-    public async Task<bool> UpdateEmailAsync(Guid userId, string newEmail)
-    {
-        if (!IsValidEmail(newEmail)) return false;
-
-        var user = await _db.Users.FindAsync(userId);
-        if (user is null) return false;
-
-        user.Email = newEmail;
-        await _db.SaveChangesAsync();
-        return true;
-    }
-
-    private static bool IsValidEmail(string email) =>
-        !string.IsNullOrWhiteSpace(email) && email.Contains('@');
-}
-```
-
-### Takeaway
-
-> **Patterns are tools, not goals -- if you cannot articulate the specific problem a pattern solves in your current code, do not use it.**
+- Patterns are **solutions to recurring problems**, not architectural decorations.
+- Start with the simplest solution that works.
+- Introduce a pattern when you experience the specific pain it solves.
+- Name classes after what they DO, not what pattern they implement.
+- Ask: "If I removed this pattern, would the code be worse?" If no, remove it.
 
 ---
 
 ## 8. Repository Overuse with EF Core
 
-### Description
+### Why It Is Harmful
 
-Repository overuse with EF Core is the practice of wrapping `DbContext` in a custom Repository and Unit of Work layer that adds no meaningful abstraction. Since EF Core's `DbSet<T>` already implements the Repository pattern and `DbContext` already implements Unit of Work, the custom layer simply proxies calls with zero added value.
+EF Core's `DbContext` already implements Repository (via `DbSet<T>`) and Unit of Work (via `SaveChanges()`). Wrapping it in another Repository layer often adds no value and can actively prevent you from using EF Core's features effectively.
 
-### Why It's Harmful
+### Symptoms
 
-- **Double abstraction**: You wrap a repository (DbSet) in another repository, and a unit of work (DbContext) in another unit of work.
-- **Feature loss**: Custom repositories often expose only a subset of EF Core's capabilities, leading developers to bypass the repository to access features like `Include()`, projections, or raw SQL.
-- **False portability promise**: The justification is "we might switch ORMs" -- this almost never happens, and when it does, the repository abstraction is never sufficient anyway.
-- **Maintenance tax**: Every new query requires adding a method to the repository interface and implementation.
-- **Leaky abstraction**: The repository inevitably starts returning `IQueryable<T>`, at which point it is just a passthrough to DbSet.
+- `IRepository<T>` that only wraps `DbSet<T>` methods one-to-one.
+- Cannot use EF Core features like `Include()`, `ThenInclude()`, projections, or raw SQL.
+- Repository methods return `IQueryable<T>` — leaking the abstraction anyway.
+- Unit tests mock the repository but never test actual database behavior.
+- Every new query requires a new repository method.
 
-### Symptoms / Code Smells
-
-- `IRepository<T>` with `GetAll()`, `GetById()`, `Add()`, `Update()`, `Delete()` that directly call DbSet methods.
-- Repository methods returning `IQueryable<T>` (defeats the purpose of the abstraction).
-- Developers bypassing the repository to use `DbContext` directly because the repository does not expose a needed feature.
-- A `IUnitOfWork` interface whose only method is `SaveChangesAsync()` -- identical to what DbContext already provides.
-- Every new database query requires modifying the repository class.
-
-### Code Example: The Anti-Pattern
+### Code Smells
 
 ```csharp
-// ANTI-PATTERN: Wrapper that adds nothing
-public interface IRepository<T> where T : class
-{
-    Task<T?> GetByIdAsync(int id);
-    Task<IEnumerable<T>> GetAllAsync();
-    Task AddAsync(T entity);
-    void Update(T entity);
-    void Delete(T entity);
-    IQueryable<T> Query(); // Leaks EF Core abstraction
-}
-
-public class Repository<T> : IRepository<T> where T : class
+// ANTI-PATTERN: Thin wrapper with no added value
+public class OrderRepository : IOrderRepository
 {
     private readonly AppDbContext _context;
-    private readonly DbSet<T> _dbSet;
 
-    public Repository(AppDbContext context)
-    {
-        _context = context;
-        _dbSet = context.Set<T>();
-    }
+    public async Task<Order?> GetByIdAsync(int id)
+        => await _context.Orders.FindAsync(id);  // Just forwarding!
 
-    public async Task<T?> GetByIdAsync(int id) => await _dbSet.FindAsync(id);
-    public async Task<IEnumerable<T>> GetAllAsync() => await _dbSet.ToListAsync();
-    public async Task AddAsync(T entity) => await _dbSet.AddAsync(entity);
-    public void Update(T entity) => _dbSet.Update(entity);
-    public void Delete(T entity) => _dbSet.Remove(entity);
-    public IQueryable<T> Query() => _dbSet.AsQueryable(); // Just returns DbSet!
-}
+    public async Task AddAsync(Order order)
+        => await _context.Orders.AddAsync(order); // Just forwarding!
 
-public interface IUnitOfWork
-{
-    IRepository<Order> Orders { get; }
-    IRepository<Product> Products { get; }
-    Task<int> SaveChangesAsync(CancellationToken ct = default);
-}
-// This is just DbContext with extra steps.
-```
-
-### The Better Alternative
-
-```csharp
-// BETTER: Use DbContext directly for simple CRUD
-public class OrderService
-{
-    private readonly AppDbContext _db;
-
-    public OrderService(AppDbContext db) => _db = db;
-
-    public async Task<Order?> GetOrderAsync(int id) =>
-        await _db.Orders
-            .Include(o => o.Items)
-            .FirstOrDefaultAsync(o => o.Id == id);
-}
-
-// Use the Specification pattern ONLY when you have complex, reusable query logic:
-public class ActiveOrdersSpec : Specification<Order>
-{
-    public ActiveOrdersSpec(Guid customerId)
-    {
-        Query
-            .Where(o => o.CustomerId == customerId && o.Status != OrderStatus.Cancelled)
-            .Include(o => o.Items)
-            .OrderByDescending(o => o.CreatedAt);
-    }
+    public IQueryable<Order> GetAll()
+        => _context.Orders;                       // Leaking IQueryable!
 }
 ```
 
-### Takeaway
+### Better Approach
 
-> **EF Core's DbContext is already a Repository + Unit of Work -- wrapping it in another one only hides its features behind an inferior API.**
+- **Use `DbContext` directly** in application services if you have no real abstraction need.
+- Use Repository **only when**: you need to swap ORMs, you have complex query encapsulation, or you need genuinely testable data access.
+- If you use Repository, use **Specification pattern** for queries instead of adding methods.
+- Write **integration tests** against a real database (TestContainers, SQLite in-memory) instead of mocking repositories.
 
 ---
 
 ## 9. Leaky Abstraction
 
-### Description
+### Why It Is Harmful
 
-A leaky abstraction is an abstraction that exposes implementation details to its consumers, forcing them to understand the underlying mechanism to use the abstraction correctly. The abstraction promises to hide complexity but fails to contain it, and consumers end up coupled to the implementation anyway.
+An abstraction that exposes implementation details defeats its purpose. Consumers become coupled to the concrete implementation even though they program against an interface.
 
-### Why It's Harmful
+### Symptoms
 
-- Defeats the purpose of the abstraction: consumers still need to know the internals.
-- Creates hidden coupling: code appears decoupled but is functionally coupled.
-- Breaking changes in the implementation break consumers, even though there is an "abstraction" layer.
-- Makes testing unreliable: mocks may behave differently from the real implementation in subtle ways the leaky interface cannot capture.
-- Gives a false sense of encapsulation.
+- Interface methods mirror the underlying technology's API.
+- Consumers need to know implementation details to use the interface correctly.
+- Changing the implementation requires changing all consumers.
+- Exception types from the underlying technology leak through the interface.
 
-### Symptoms / Code Smells
-
-- Interfaces that expose `IQueryable<T>` (leaks the ORM's query engine).
-- Abstractions whose method signatures include implementation-specific types (e.g., `SqlParameter`, `HttpRequestMessage`).
-- Consumers that must call methods in a specific order because the abstraction does not manage its own state.
-- Exception types from the underlying library leaking through the abstraction.
-- Documentation that says "Note: this behaves differently when the underlying implementation is X."
-
-### Code Example: The Anti-Pattern
+### Code Smells
 
 ```csharp
-// ANTI-PATTERN: Abstraction that leaks IQueryable and EF Core specifics
+// LEAKY: Interface exposes SQL/EF Core concepts
 public interface IOrderRepository
 {
-    IQueryable<Order> GetOrders(); // Leaks: consumers build EF Core queries
-    Task SaveAsync(Order order, bool useTransaction = false); // Leaks: exposes DB concept
+    IQueryable<Order> Query();                    // Leaks IQueryable (EF Core)
+    Task<Order> FromSqlRaw(string sql);           // Leaks SQL
+    void Attach(Order order);                     // Leaks EF Core change tracking
+    Task<int> ExecuteSqlAsync(string sql);         // Leaks SQL
 }
 
-public class OrderController
+// LEAKY: Adapter that exposes the adaptee's exceptions
+public class FedExAdapter : IShippingCarrier
 {
-    private readonly IOrderRepository _repo;
-
-    public async Task<IActionResult> GetActiveOrders()
+    public Task<ShipmentResult> Ship(Shipment s)
     {
-        // Consumer must know EF Core's Include/Where/Select syntax
-        var orders = await _repo.GetOrders()
-            .Include(o => o.Items)          // EF Core specific
-            .ThenInclude(i => i.Product)    // EF Core specific
-            .Where(o => o.Status == Status.Active)
-            .Select(o => new OrderDto       // EF Core projection
-            {
-                Id = o.Id,
-                Total = o.Items.Sum(i => i.Price)
-            })
-            .ToListAsync();                 // EF Core specific
-
-        return Ok(orders);
+        // Throws FedExApiException — consumer must know about FedEx!
+        return _fedExClient.CreateShipment(s.ToFedExRequest());
     }
 }
-// The "abstraction" provides zero encapsulation.
 ```
 
-### The Better Alternative
+### Better Approach
 
 ```csharp
-// BETTER: Abstraction that fully encapsulates the query
+// BETTER: Domain-level interface with no technology leakage
 public interface IOrderRepository
 {
-    Task<IReadOnlyList<OrderSummary>> GetActiveOrdersAsync(Guid customerId);
-    Task<Order?> GetByIdWithItemsAsync(Guid orderId);
-    Task SaveAsync(Order order);
+    Task<Order?> GetByIdAsync(OrderId id);
+    Task<IReadOnlyList<Order>> FindAsync(Specification<Order> spec);
+    Task AddAsync(Order order);
 }
 
-// The implementation handles EF Core details internally
-public class EfOrderRepository : IOrderRepository
+// BETTER: Adapter catches and translates exceptions
+public class FedExAdapter : IShippingCarrier
 {
-    private readonly AppDbContext _db;
-
-    public async Task<IReadOnlyList<OrderSummary>> GetActiveOrdersAsync(Guid customerId)
+    public async Task<ShipmentResult> Ship(Shipment s)
     {
-        return await _db.Orders
-            .Where(o => o.CustomerId == customerId && o.Status == Status.Active)
-            .Select(o => new OrderSummary(o.Id, o.Items.Sum(i => i.Price)))
-            .ToListAsync();
+        try { return await _fedExClient.CreateShipment(s.ToFedExRequest()); }
+        catch (FedExApiException ex)
+        {
+            throw new ShippingException("FedEx shipment failed", ex);
+        }
     }
 }
-// Consumers call a domain-meaningful method and get a DTO. No EF knowledge needed.
 ```
-
-### Takeaway
-
-> **If consumers need to understand the implementation to use the abstraction, the abstraction does not exist -- it is just an extra layer of indirection.**
 
 ---
 
 ## 10. Fake CQRS
 
-### Description
+### Why It Is Harmful
 
-Fake CQRS is the practice of separating code into Command and Query handlers (often with MediatR) while still using the same database, the same models, and the same data access logic for both reads and writes. It applies the structural ceremony of CQRS without any of its architectural benefits.
+Implementing CQRS in name only — where commands and queries use the same model, same database, and same ORM — adds the complexity of CQRS without any of its benefits.
 
-### Why It's Harmful
+### Symptoms
 
-- Adds the complexity cost of CQRS (separate handler classes, separate models, message dispatch) with none of the benefits (independent scaling, optimized read models, event sourcing).
-- Doubles the number of classes: every operation now has a request, a handler, and often a validator and a mapper.
-- Creates the illusion of architectural sophistication while the system is functionally identical to a simple service layer.
-- Makes simple CRUD operations take 4x as long to implement.
-- Misleads architects into thinking the system is "CQRS-ready" when it is not.
+- Command handlers and query handlers both use the same `DbContext` and same entity models.
+- Read models are just the same entities with some properties hidden.
+- No separate read store, no denormalized views, no independent scaling.
+- The team says "we use CQRS" but reads and writes go through the same pipeline.
 
-### Symptoms / Code Smells
-
-- `GetOrderByIdQuery` and `CreateOrderCommand` both inject the same `DbContext` and hit the same table.
-- Read and write models are identical or trivially different (one has an extra property).
-- No separate read database, no projections, no event sourcing.
-- The only reason for CQRS is "we use MediatR and it's the recommended pattern."
-- Command handlers return data (e.g., `Task<OrderDto>`) -- real commands return void or an acknowledgment.
-
-### Code Example: The Anti-Pattern
+### Code Smells
 
 ```csharp
-// ANTI-PATTERN: CQRS ceremony with CRUD reality
-public record GetOrderQuery(Guid Id) : IRequest<OrderDto>;
-public record CreateOrderCommand(string Product, int Qty) : IRequest<OrderDto>;
-
-public class GetOrderQueryHandler : IRequestHandler<GetOrderQuery, OrderDto>
+// FAKE CQRS: Same model, same DbContext, just different class names
+public class GetOrderQuery : IQuery<Order> { public int Id { get; set; } }
+public class GetOrderHandler : IQueryHandler<GetOrderQuery, Order>
 {
-    private readonly AppDbContext _db; // Same DbContext
-
-    public async Task<OrderDto> Handle(GetOrderQuery request, CancellationToken ct)
-    {
-        var order = await _db.Orders.FindAsync(request.Id); // Same table
-        return new OrderDto(order.Id, order.Product, order.Qty); // Same model, mapped
-    }
+    private readonly AppDbContext _context; // Same context as commands!
+    public async Task<Order> Handle(GetOrderQuery query)
+        => await _context.Orders.FindAsync(query.Id); // Same model as commands!
 }
-
-public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, OrderDto>
-{
-    private readonly AppDbContext _db; // Same DbContext, same table, same model
-
-    public async Task<OrderDto> Handle(CreateOrderCommand request, CancellationToken ct)
-    {
-        var order = new Order { Product = request.Product, Qty = request.Qty };
-        _db.Orders.Add(order);
-        await _db.SaveChangesAsync(ct);
-        return new OrderDto(order.Id, order.Product, order.Qty); // Command returns data!
-    }
-}
-// Two handler classes, two request classes, same database, same model. This is just CRUD.
 ```
 
-### The Better Alternative
+### Better Approach
 
-```csharp
-// OPTION A: If it's CRUD, just do CRUD
-public class OrderService
-{
-    private readonly AppDbContext _db;
-
-    public async Task<OrderDto> GetAsync(Guid id) { /* ... */ }
-    public async Task<Guid> CreateAsync(CreateOrderRequest request) { /* ... */ }
-}
-
-// OPTION B: If you genuinely need CQRS, commit to it
-// - Separate read database (e.g., denormalized SQL views, Redis, Elasticsearch)
-// - Write side publishes events
-// - Read side subscribes and maintains its own projections
-// - Commands return void or an ID, never the full entity
-```
-
-### Takeaway
-
-> **If your commands and queries hit the same database with the same models, you have a service layer with extra steps -- not CQRS.**
+- **Do not adopt CQRS unless** read and write models genuinely differ.
+- If you do adopt CQRS:
+  - Use **separate read models** (DTOs, projections, denormalized views).
+  - Consider **separate data stores** for reads if scaling requires it.
+  - Use **domain events** to project write-side changes to read-side models.
+- For simple CRUD, a single service class with methods is fine.
 
 ---
 
 ## 11. Unnecessary Mediator Layers
 
-### Description
+### Why It Is Harmful
 
-Unnecessary mediator layers involve using a library like MediatR to dispatch every request from a controller to a handler, even when the handler simply calls a service method. The mediator becomes an indirection layer that adds hop count and complexity without providing cross-cutting concern benefits or decoupling benefits.
+Using MediatR (or a custom mediator) as a universal dispatch mechanism turns what should be direct method calls into indirect, harder-to-trace communication. The pattern is meant to reduce coupling between *many interconnected objects*, not to replace simple dependency injection.
 
-### Why It's Harmful
+### Symptoms
 
-- **Indirection without benefit**: Controller calls mediator, mediator calls handler, handler calls service. The mediator hop adds nothing.
-- **Hides the dependency graph**: You cannot tell from a controller what services it depends on -- you must trace through the mediator.
-- **F12 navigation is broken**: "Go to definition" on `Send()` takes you to MediatR internals, not your handler.
-- **Testing becomes indirect**: You must either test through the mediator or test the handler in isolation, but not naturally test the controller-to-handler flow.
-- **Performance cost**: Reflection-based dispatch, pipeline behaviors, and DI resolution add latency for no architectural gain.
+- Every controller action sends a request to MediatR that is handled by exactly one handler.
+- The handler is in the same project, often in the same folder.
+- You cannot "Go to Definition" on a method call — you must search for the handler.
+- Pipeline behaviors add cross-cutting concerns that middleware or filters already handle.
+- The mediator is used as a service locator disguised as a pattern.
 
-### Symptoms / Code Smells
-
-- Controllers have a single dependency: `IMediator`.
-- Handlers have a single line that delegates to a service.
-- No pipeline behaviors (logging, validation, caching) are configured -- the mediator is just a message router.
-- The team cannot explain why they use MediatR beyond "it's best practice."
-- Removing MediatR and calling the service directly would not change any behavior.
-
-### Code Example: The Anti-Pattern
+### Code Smells
 
 ```csharp
-// ANTI-PATTERN: Mediator as a passthrough layer
-[ApiController]
-public class ProductController : ControllerBase
+// UNNECESSARY: Mediator for a simple call with one handler
+[HttpPost]
+public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request)
 {
-    private readonly IMediator _mediator;
-
-    public ProductController(IMediator mediator) => _mediator = mediator;
-
-    [HttpGet("{id}")]
-    public async Task<IActionResult> Get(Guid id) =>
-        Ok(await _mediator.Send(new GetProductQuery(id)));
+    var result = await _mediator.Send(new CreateOrderCommand(request));
+    return Ok(result);
 }
 
-public record GetProductQuery(Guid Id) : IRequest<ProductDto>;
-
-public class GetProductQueryHandler : IRequestHandler<GetProductQuery, ProductDto>
+// The handler just calls a service:
+public class CreateOrderHandler : IRequestHandler<CreateOrderCommand, OrderDto>
 {
-    private readonly IProductService _service;
-
-    public GetProductQueryHandler(IProductService service) => _service = service;
-
-    public async Task<ProductDto> Handle(GetProductQuery request, CancellationToken ct)
-    {
-        return await _service.GetByIdAsync(request.Id); // Just a passthrough!
-    }
+    private readonly IOrderService _service;
+    public async Task<OrderDto> Handle(CreateOrderCommand cmd, CancellationToken ct)
+        => await _service.CreateOrder(cmd.Request); // Just forwarding!
 }
-// Controller -> MediatR -> Handler -> Service. The middle two layers add nothing.
 ```
 
-### The Better Alternative
+### Better Approach
 
 ```csharp
-// BETTER: Inject the service directly
-[ApiController]
-public class ProductController : ControllerBase
+// SIMPLER: Direct injection
+[HttpPost]
+public async Task<IActionResult> CreateOrder(
+    [FromBody] CreateOrderRequest request,
+    [FromServices] IOrderService orderService)
 {
-    private readonly IProductService _productService;
-
-    public ProductController(IProductService productService)
-        => _productService = productService;
-
-    [HttpGet("{id}")]
-    public async Task<IActionResult> Get(Guid id) =>
-        Ok(await _productService.GetByIdAsync(id));
+    var result = await orderService.CreateOrder(request);
+    return Ok(result);
 }
-
-// USE MediatR when you actually benefit from it:
-// - Pipeline behaviors for cross-cutting concerns (validation, logging, caching)
-// - Decoupling between modules in a modular monolith
-// - Domain event dispatch where the publisher should not know the subscribers
 ```
 
-### Takeaway
-
-> **MediatR earns its place through pipeline behaviors and decoupling -- if you are just routing calls, inject the service directly.**
+**When Mediator IS valuable**:
+- Multiple colleagues need to communicate without knowing about each other.
+- You want a clean pipeline (validation, logging, authorization) for a large number of command/query types.
+- You are implementing CQRS and want a consistent dispatch mechanism.
+- You have a complex workflow where the mediator coordinates multiple services.
 
 ---
 
-## 12. Anemic Domain Model vs Rich Domain Model
+## 12. Anemic Domain Model
 
-### Description
+### Why It Is Harmful
 
-This is not strictly an anti-pattern in all contexts, but a design tension that must be understood. An **Anemic Domain Model** has entities that are pure data containers (getters/setters) with all behavior in external services. A **Rich Domain Model** encapsulates behavior within the entity itself, enforcing invariants through its methods.
+An anemic domain model is one where domain entities are data bags (getters/setters only) and all business logic lives in service classes. This contradicts the object-oriented principle that objects should encapsulate both data *and* behavior.
 
-### When Anemic Is Appropriate
+### Symptoms
 
-- Simple CRUD applications where domain logic is minimal.
-- Applications dominated by data transformation rather than business rules.
-- Teams with strong service-layer conventions and limited DDD experience.
-- Prototypes and MVPs where speed of delivery matters more than model purity.
-- Reporting and read-heavy applications.
+- Entities have only properties with public getters and setters.
+- All business logic is in "service" or "manager" classes.
+- Entities can be put into any state — no invariants enforced.
+- Services are the only classes with behavior; entities are DTOs.
+- The domain model is a data structure, not an object model.
 
-### When Anemic Is Harmful
-
-- Complex business domains with many invariants (e.g., financial systems, booking systems).
-- When business rules are duplicated across multiple services because entities cannot enforce them.
-- When developers must remember to call validation before saving -- the entity cannot protect itself.
-- When the domain model is shared with external systems and must be self-consistent.
-
-### When Rich Is Appropriate
-
-- Domains with complex invariants that must always be enforced (e.g., "an order cannot be shipped unless it is paid").
-- Applications following Domain-Driven Design.
-- Long-lived projects where the cost of bugs from unenforced invariants exceeds the cost of richer models.
-- When multiple entry points (API, message handler, background job) all must enforce the same rules.
-
-### When Rich Is Harmful (Over-Applied)
-
-- Simple CRUD where adding behavior to entities is ceremony without benefit.
-- When it leads to entities depending on infrastructure services (repositories, HTTP clients).
-- When the team lacks DDD experience and produces "smart entities" that mix concerns.
-
-### Code Example: Anemic Model
+### Code Smells
 
 ```csharp
-// ANEMIC: Entity is a data bag, service enforces rules
+// ANEMIC: Entity is just a data bag
 public class Order
 {
-    public Guid Id { get; set; }
-    public OrderStatus Status { get; set; }
-    public List<OrderItem> Items { get; set; } = new();
-    public decimal Total { get; set; }
+    public int Id { get; set; }
+    public string Status { get; set; }       // Can be set to anything!
+    public decimal Total { get; set; }        // Can be negative!
+    public List<OrderItem> Items { get; set; } // Externally mutable!
 }
 
+// ALL logic is in the service
 public class OrderService
 {
-    public void AddItem(Order order, Product product, int qty)
-    {
-        if (order.Status != OrderStatus.Draft)
-            throw new InvalidOperationException("Cannot modify a non-draft order");
-
-        order.Items.Add(new OrderItem { Product = product, Quantity = qty });
-        order.Total = order.Items.Sum(i => i.Product.Price * i.Quantity);
-    }
-
     public void Submit(Order order)
     {
-        if (!order.Items.Any())
-            throw new InvalidOperationException("Cannot submit empty order");
-
-        order.Status = OrderStatus.Submitted;
+        if (order.Status != "Draft") throw new Exception("...");
+        if (order.Items.Count == 0) throw new Exception("...");
+        order.Status = "Submitted";
+        order.Total = order.Items.Sum(i => i.Price * i.Quantity);
     }
 }
-// Problem: Nothing stops someone from doing order.Status = OrderStatus.Submitted directly,
-// bypassing the validation.
 ```
 
-### Code Example: Rich Domain Model
+### Rich Domain Model (Better Approach)
 
 ```csharp
-// RICH: Entity protects its own invariants
+// RICH: Entity encapsulates data AND behavior
 public class Order
 {
-    public Guid Id { get; private set; }
+    public OrderId Id { get; }
     public OrderStatus Status { get; private set; }
-    private readonly List<OrderItem> _items = new();
+    public Money Total { get; private set; }
+
+    private readonly List<OrderItem> _items = [];
     public IReadOnlyList<OrderItem> Items => _items.AsReadOnly();
-    public decimal Total => _items.Sum(i => i.Price * i.Quantity);
 
-    public Order()
-    {
-        Id = Guid.NewGuid();
-        Status = OrderStatus.Draft;
-    }
-
-    public void AddItem(Product product, int quantity)
+    public Result Submit()
     {
         if (Status != OrderStatus.Draft)
-            throw new InvalidOperationException("Cannot modify a non-draft order");
-        if (quantity <= 0)
-            throw new ArgumentException("Quantity must be positive");
-
-        _items.Add(new OrderItem(product.Id, product.Price, quantity));
-    }
-
-    public void Submit()
-    {
-        if (!_items.Any())
-            throw new InvalidOperationException("Cannot submit empty order");
+            return Result.Failure("Order is not in Draft state");
+        if (_items.Count == 0)
+            return Result.Failure("Order must have at least one item");
 
         Status = OrderStatus.Submitted;
-        // Optionally raise a domain event:
-        // AddDomainEvent(new OrderSubmittedEvent(Id));
+        Total = Money.Sum(_items.Select(i => i.LineTotal));
+        AddDomainEvent(new OrderSubmittedEvent(Id));
+        return Result.Success();
+    }
+
+    public Result AddItem(Product product, int quantity)
+    {
+        if (Status != OrderStatus.Draft)
+            return Result.Failure("Cannot modify a non-draft order");
+        // ... validation and item addition
     }
 }
-// Invariants are always enforced. No external code can put the order in an invalid state.
 ```
 
-### Decision Guide
+### Anemic vs Rich Domain Model Comparison
 
-| Factor | Anemic | Rich |
-|--------|--------|------|
-| Domain complexity | Low | High |
-| Number of invariants | Few | Many |
-| Entry points enforcing same rules | 1 (API only) | Multiple (API, queue, jobs) |
-| Team DDD experience | Low | High |
-| Application lifespan | Short / MVP | Long-lived |
-| Primary operation | CRUD / reporting | Business workflows |
+| Aspect                | Anemic Domain Model                      | Rich Domain Model                        |
+|-----------------------|------------------------------------------|------------------------------------------|
+| **Entity behavior**   | None — just properties                   | Encapsulates business rules             |
+| **Invariants**        | Not enforced                             | Always valid by construction            |
+| **Testing**           | Must test services + entity state combo  | Test entity behavior directly           |
+| **Discoverability**   | Logic scattered across services          | Logic co-located with data              |
+| **Appropriate for**   | Simple CRUD, data pipelines, DTOs        | Complex domains with business rules     |
 
-### Takeaway
-
-> **Anemic models work for simple CRUD; rich models earn their cost when you have business invariants that must be enforced regardless of how the entity is accessed.**
+**Important nuance**: Anemic models are not always wrong. For simple CRUD applications, data transfer, and read models, anemic objects (DTOs, records) are perfectly appropriate. The anti-pattern is using anemic models in a domain where **complex business rules exist** and should be encapsulated.
 
 ---
 
-## Summary: The Meta-Takeaway
+## Anti-Pattern Summary Table
 
-Before applying any design pattern, ask yourself three questions:
+| Anti-Pattern                | Root Cause                        | Key Fix                                      |
+|-----------------------------|-----------------------------------|----------------------------------------------|
+| Overengineering             | Pattern as goal, not tool         | Start simple; add patterns when pain appears |
+| Premature Abstraction       | "Just in case" thinking           | Wait for concrete need (Rule of Three)       |
+| Singleton Abuse              | Global state addiction            | Use DI singleton lifetime instead            |
+| Service Locator             | Lazy dependency declaration       | Explicit constructor injection               |
+| God Factory                 | SRP violation in creation         | One factory per product family               |
+| Inheritance Misuse          | Reuse via "is-a" instead of "has-a"| Composition over inheritance                |
+| Pattern Obsession           | Patterns as decorations           | Solve problems, not apply patterns           |
+| Repository Overuse          | Cargo-cult architecture           | Use DbContext directly when appropriate      |
+| Leaky Abstraction           | Technology details in contracts   | Domain-level interfaces only                 |
+| Fake CQRS                   | CQRS cargo cult                   | Only separate when shapes differ             |
+| Unnecessary Mediator        | MediatR as universal dispatch     | Direct injection when only one handler       |
+| Anemic Domain Model         | OOP neglect                       | Co-locate behavior with data                 |
 
-1. **What specific problem does this pattern solve in my current code?** (Not hypothetically, not in the future -- right now.)
-2. **Is the pattern's cost (indirection, complexity, files) justified by the problem's severity?**
-3. **Would a new team member understand this code faster with or without the pattern?**
+---
 
-If you cannot give concrete, present-tense answers to all three, write the simple version first. You can always refactor toward a pattern when the need is real. You can rarely refactor away from a prematurely applied pattern without significant effort.
+## Decision Checklist: Should I Use This Pattern?
+
+Before introducing a pattern, ask yourself:
+
+- [ ] **Is there a real problem?** Not a theoretical future problem, but pain you feel today.
+- [ ] **Does the pattern solve THIS problem?** Not a similar problem from a blog post.
+- [ ] **Is the cost justified?** More files, more indirection, more cognitive load — worth it?
+- [ ] **Would a simpler solution work?** A method, a `switch`, a direct call?
+- [ ] **Can my team understand it?** If you have to explain the pattern every code review, reconsider.
+- [ ] **Can I remove it later?** Good abstractions are easy to remove. Bad ones are not.
+
+> **The best pattern is the one you do not notice.** It should make the code clearer, not more impressive.
+
+---
+
+## Next Steps
+
+- [Pattern Selection Guide](pattern-selection-guide.md) — Choose the right pattern for the right problem
+- [Interview Cheat Sheet](interview-revision-cheatsheet.md) — Know when to argue AGAINST a pattern in interviews
+- [Comparison Maps](comparison-maps.md) — Understand the subtle differences that prevent misuse
