@@ -1,63 +1,68 @@
 # Chain of Responsibility
 
 ## Memory Hook (one-liner)
-"Pass the buck until someone can handle it" — like an expense report climbing the management ladder.
+"Pass the request down the line until someone handles it — like an expense approval escalating from auto-approve to manager to director to VP."
 
 ## Problem
-You have a request that could be handled by several different objects, but you don't know which one at compile time. Hard-coding the decision logic creates tight coupling and makes adding new handlers painful.
+An expense request needs approval, but the approver depends on the amount. Hard-coding `if/else if/else if` chains to route requests creates rigid, unmaintainable code that violates Open/Closed principle. Adding a new approval level means modifying the routing logic everywhere.
 
 ## Naive Approach
-A giant `if/else if/else` block or `switch` statement that checks every condition inline. This becomes unmaintainable as new approval levels are added, and the caller must know all possible handlers.
+```csharp
+// Brittle if-else chain, tightly coupled to all approval levels
+if (amount < 100) return AutoApprove();
+else if (amount < 1000) return ManagerApprove();
+else if (amount < 10000) return DirectorApprove();
+else return VpApprove();
+```
 
 ## Pattern Solution
-Chain of Responsibility decouples the sender of a request from its receiver by giving multiple objects a chance to handle it. Each handler either processes the request or forwards it to the next handler in the chain.
+Each handler in the chain decides: "Can I handle this?" If yes, it processes the request. If no, it passes to the next handler. Handlers are linked dynamically, so adding/removing/reordering is trivial.
 
 ## When To Use (5 bullets)
-- More than one object can handle a request, and the handler isn't known a priori
-- You want to issue a request to several objects without specifying the exact receiver
-- The set of handlers should be configured dynamically
-- You want to avoid coupling the sender to concrete handler classes
-- Processing involves a pipeline where each step may transform or filter data
+- Multiple objects may handle a request, and the handler isn't known a priori
+- You want to issue a request without coupling sender to receiver
+- The set of handlers should be configurable dynamically
+- You need to process a request through a series of checks/validations
+- You want to decouple request senders from the processing logic
 
 ## When NOT To Use (5 bullets)
-- There's a single, well-known handler — simple delegation is clearer
-- Every request must be handled (chain may silently drop unhandled requests)
-- Performance is critical and the chain is very long
-- The order of handlers doesn't matter — use an event/observer instead
-- You need guaranteed response times (chain length affects latency)
+- When every request must be handled (chain may silently drop unhandled requests)
+- When request handling order doesn't matter (just use a list of handlers)
+- When you need guaranteed response time (chain traversal adds latency)
+- When there's only one possible handler (just call it directly)
+- When handlers need to collaborate (Mediator is better)
 
 ## Participants
-| Role | In This Example |
-|------|----------------|
+| Participant | In Our Code |
+|---|---|
 | Handler | `IApprovalHandler` |
-| ConcreteHandler | `AutoApprovalHandler`, `ManagerApprovalHandler`, `DirectorApprovalHandler`, `VpApprovalHandler` |
-| Client | Code that creates the chain and submits `ExpenseRequest` |
+| ConcreteHandler | `AutoApprovalHandler`, `ManagerApprovalHandler`, etc. |
+| Client | Code that builds the chain and submits `ExpenseRequest` |
 
 ## Variants
-- **Classic Chain**: Stops at the first handler that can process (our approval chain)
-- **Pipeline/Middleware**: Every handler processes AND forwards (our `Pipeline<T>` variant, similar to ASP.NET Core middleware)
+1. **Classic Chain** — processing stops at the first handler that handles the request (our approval chain)
+2. **Pipeline** — every step processes the request AND forwards it (our `Pipeline<T>` variant)
+3. **Middleware** — ASP.NET Core middleware is a pipeline-style chain of responsibility
 
 ## Tradeoffs Table
 | Aspect | Pro | Con |
-|--------|-----|-----|
-| Flexibility | Add/remove handlers without changing client | Request might go unhandled |
-| SRP | Each handler has one responsibility | Debugging chain traversal can be difficult |
-| Open/Closed | New handlers don't modify existing code | Performance overhead if chain is long |
-| Ordering | Chain order encodes business rules | Incorrect ordering causes subtle bugs |
+|---|---|---|
+| Flexibility | Add/remove handlers without changing client | Request may go unhandled |
+| Coupling | Sender doesn't know the concrete handler | Debugging chain traversal can be tricky |
+| SRP | Each handler has one responsibility | Chain setup can be complex |
 
 ## Common Interview Questions
 1. How does Chain of Responsibility differ from Decorator?
-2. Can a request be handled by multiple handlers? (Pipeline variant: yes)
-3. How do you guarantee a request is always handled?
-4. How would you implement this with dependency injection?
-5. What is the relationship between CoR and middleware pipelines?
+2. How would you guarantee that every request is handled?
+3. What's the difference between the classic chain and pipeline variant?
+4. How does ASP.NET Core middleware implement this pattern?
 
 ## Comparison with Similar Patterns
-| Pattern | Similarity | Difference |
-|---------|-----------|------------|
-| Decorator | Both chain objects | Decorator always forwards; CoR may stop |
-| Command | Both decouple sender/receiver | Command encapsulates action; CoR routes to handler |
-| Observer | Both involve multiple receivers | Observer notifies all; CoR finds one handler |
+| Pattern | Key Difference |
+|---|---|
+| **Decorator** | Decorator adds behavior; CoR routes to the right handler |
+| **Command** | Command encapsulates a request; CoR routes it |
+| **Mediator** | Mediator centralizes communication; CoR distributes it |
 
 ## Mermaid Diagrams
 
@@ -91,17 +96,17 @@ classDiagram
 sequenceDiagram
     participant Client
     participant Auto as AutoApprovalHandler
-    participant Manager as ManagerApprovalHandler
-    participant Director as DirectorApprovalHandler
+    participant Mgr as ManagerApprovalHandler
+    participant Dir as DirectorApprovalHandler
     participant VP as VpApprovalHandler
 
-    Client->>Auto: Handle($5,000 expense)
-    Auto->>Manager: Handle (too large)
-    Manager->>Director: Handle (too large)
-    Director-->>Client: Approved by Director
+    Client->>Auto: Handle($5000 expense)
+    Auto->>Mgr: Handle (too large)
+    Mgr->>Dir: Handle (too large)
+    Dir-->>Client: Approved by Director
 ```
 
 ## Similar Patterns to Review Next
-- Decorator (structural chaining)
-- Middleware/Pipeline (ASP.NET Core)
-- Command (encapsulated actions)
+- Decorator (wrapping vs. routing)
+- Mediator (centralized vs. distributed communication)
+- Command (encapsulating requests)

@@ -1,65 +1,72 @@
 # Mediator
 
 ## Memory Hook (one-liner)
-"Air traffic control for objects" — components don't talk to each other, they talk through the mediator.
+"A central coordinator that prevents components from talking directly to each other — like a checkout orchestrator that coordinates inventory, payment, shipping, and notifications."
 
 ## Problem
-Multiple objects need to communicate, but direct references between them create a tangled web of dependencies. Adding a new participant requires modifying every existing one.
+An e-commerce checkout involves inventory, payment, shipping, and notification systems. If each system called the others directly, you'd have N*(N-1) dependencies — a tangled web. Changes to one system would cascade through all others.
 
 ## Naive Approach
-Each checkout component (inventory, payment, shipping, notifications) holds references to every other component and calls methods directly. This creates N*(N-1) dependencies and makes the system brittle.
+```csharp
+// Every component knows about every other component
+inventoryService.Reserve(items);
+if (paymentService.Charge(amount)) {
+    shippingService.Ship(address);
+    notificationService.SendConfirmation();
+} else {
+    inventoryService.Release(items);
+    notificationService.SendFailure();
+}
+```
 
 ## Pattern Solution
-Introduce a mediator that coordinates interactions between colleagues. Each colleague knows only the mediator, not the other colleagues. The mediator encapsulates the workflow logic — the "who calls whom and in what order."
+A Mediator centralizes the interaction logic. Colleagues (inventory, payment, shipping, notification) only know the mediator, not each other. The mediator orchestrates the workflow including compensating actions on failure.
 
 ## When To Use (5 bullets)
-- Multiple objects communicate in complex, well-defined ways
-- Object reuse is difficult because it refers to many other objects
-- You want to customize behavior distributed between several classes without subclassing all of them
-- You need to centralize control logic that coordinates multiple subsystems
-- You want to reduce the coupling graph from a mesh to a star topology
+- Multiple objects interact in complex ways with many-to-many relationships
+- You want to reduce direct dependencies between communicating objects
+- You need to centralize control logic that spans multiple components
+- You want to make the interaction logic independently testable
+- You need to coordinate workflows with compensating actions (saga pattern)
 
 ## When NOT To Use (5 bullets)
-- Only two objects communicate (direct reference is simpler)
-- The mediator becomes a "God object" with too much logic
-- Communication is purely one-directional (Observer is better)
-- You don't need to coordinate multiple independent subsystems
-- The interaction patterns are simple and unlikely to change
+- Simple interactions between two objects (just use direct calls)
+- When the mediator would become a "god object" with too much logic
+- When components need to be completely independent (use events instead)
+- When performance matters and the indirection overhead is unacceptable
+- When there's no complex coordination logic to centralize
 
 ## Participants
-| Role | In This Example |
-|------|----------------|
+| Participant | In Our Code |
+|---|---|
 | Mediator | `ICheckoutMediator` |
 | ConcreteMediator | `CheckoutMediator` |
 | Colleague | `InventoryColleague`, `PaymentColleague`, `ShippingColleague`, `NotificationColleague` |
 
 ## Variants
-- **Classic Mediator**: Concrete mediator with explicit coordination (our implementation)
-- **MediatR Library**: Request/notification-based mediator with handler registration
-- **Event Aggregator**: Mediator that uses events for loose coupling
-- **Saga Pattern**: Long-running mediator with compensation logic
+1. **Classic Mediator** — mediator holds references to all colleagues (our implementation)
+2. **Event-based Mediator** — colleagues publish events, mediator subscribes (MediatR library)
+3. **CQRS Mediator** — separates commands and queries through a mediator
 
 ## Tradeoffs Table
 | Aspect | Pro | Con |
-|--------|-----|-----|
-| Coupling | Colleagues are fully decoupled | Mediator can become complex |
-| Reuse | Colleagues are independently reusable | Mediator is often application-specific |
-| Flow Control | Workflow logic centralized in one place | Single point of failure |
-| Testing | Colleagues testable in isolation | Mediator requires integration testing |
+|---|---|---|
+| Coupling | Reduces N*N to N*1 dependencies | Mediator itself can become complex |
+| Testability | Colleagues testable in isolation | Mediator harder to test end-to-end |
+| Reusability | Colleagues reusable in other contexts | Mediator often context-specific |
 
 ## Common Interview Questions
 1. How does Mediator differ from Observer?
-2. How does the MediatR library implement this pattern?
-3. How do you prevent the mediator from becoming a God object?
-4. How would you handle compensating transactions (saga)?
-5. When would you use Mediator vs. direct method calls?
+2. How does MediatR implement the Mediator pattern?
+3. When does a Mediator become a god object?
+4. How does Mediator relate to the Saga pattern?
 
 ## Comparison with Similar Patterns
-| Pattern | Similarity | Difference |
-|---------|-----------|------------|
-| Observer | Both decouple communication | Observer is one-to-many; Mediator is many-to-many via hub |
-| Facade | Both simplify complex subsystems | Facade is unidirectional; Mediator is bidirectional |
-| Chain of Responsibility | Both route requests | CoR is sequential; Mediator is coordinated |
+| Pattern | Key Difference |
+|---|---|
+| **Observer** | Observer is one-to-many notification; Mediator is many-to-many coordination |
+| **Facade** | Facade simplifies an interface; Mediator coordinates interactions |
+| **Chain of Responsibility** | CoR distributes handling; Mediator centralizes it |
 
 ## Mermaid Diagrams
 
@@ -68,14 +75,9 @@ Introduce a mediator that coordinates interactions between colleagues. Each coll
 classDiagram
     class ICheckoutMediator {
         <<interface>>
-        +ProcessCheckoutAsync(CheckoutRequest)
+        +ProcessCheckoutAsync(CheckoutRequest) Task~CheckoutResult~
     }
-    class CheckoutMediator {
-        -_inventory: InventoryColleague
-        -_payment: PaymentColleague
-        -_shipping: ShippingColleague
-        -_notification: NotificationColleague
-    }
+    class CheckoutMediator
     class InventoryColleague
     class PaymentColleague
     class ShippingColleague
@@ -92,24 +94,24 @@ classDiagram
 ```mermaid
 sequenceDiagram
     participant Client
-    participant M as CheckoutMediator
+    participant Med as CheckoutMediator
     participant Inv as Inventory
     participant Pay as Payment
     participant Ship as Shipping
     participant Notif as Notification
 
-    Client->>M: ProcessCheckout(request)
-    M->>Inv: ReserveItems()
-    Inv-->>M: Success
-    M->>Pay: ProcessPayment()
-    Pay-->>M: Success + TxnId
-    M->>Ship: CreateShipment()
-    Ship-->>M: TrackingNumber
-    M->>Notif: SendConfirmation()
-    M-->>Client: CheckoutResult (success)
+    Client->>Med: ProcessCheckout()
+    Med->>Inv: ReserveItems()
+    Inv-->>Med: OK
+    Med->>Pay: ProcessPayment()
+    Pay-->>Med: OK (txn-id)
+    Med->>Ship: CreateShipment()
+    Ship-->>Med: OK (tracking)
+    Med->>Notif: SendConfirmation()
+    Med-->>Client: CheckoutResult(success)
 ```
 
 ## Similar Patterns to Review Next
-- Observer (event-based communication)
-- Facade (simplified interface)
-- MediatR library (CQRS mediator)
+- Observer (notification vs. coordination)
+- Facade (simplifying vs. coordinating)
+- Command (encapsulating requests the mediator orchestrates)

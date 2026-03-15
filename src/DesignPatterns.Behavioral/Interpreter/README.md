@@ -1,66 +1,71 @@
 # Interpreter
 
 ## Memory Hook (one-liner)
-"Define a grammar and build a tree to evaluate it" — like a search box that understands AND, OR, NOT.
+"Define a grammar and build a tree of expression objects that can evaluate it — like a mini search query language with AND, OR, NOT."
 
 ## Problem
-You need to evaluate expressions in a simple language. Without the pattern, you end up with tangled evaluation logic that's hard to extend with new operators or expression types.
+Users need to write search queries like `category:Electronics AND NOT color:Red`. Building this as string manipulation is fragile. You need a structured way to parse, represent, and evaluate these expressions.
 
 ## Naive Approach
-String parsing with nested if/else or regex that handles each operator inline. Adding a new operator requires modifying the parsing logic everywhere. No clean separation between parsing and evaluation.
+```csharp
+// Fragile string splitting and nested if-else
+var parts = query.Split(" AND ");
+foreach (var part in parts) {
+    if (part.StartsWith("NOT ")) { /* negate */ }
+    // Quickly becomes unmaintainable with OR, parentheses, etc.
+}
+```
 
 ## Pattern Solution
-Define a class for each grammar rule. Terminal expressions handle leaf values (field matches), non-terminal expressions combine sub-expressions (AND, OR, NOT). A parser builds the expression tree, and each node evaluates itself recursively.
+Define a grammar (AND, OR, NOT, field:value). Parse the query into an expression tree where each node implements `Interpret()`. Terminal expressions match fields; non-terminal expressions compose other expressions.
 
 ## When To Use (5 bullets)
-- You have a simple, well-defined grammar to evaluate
-- The grammar is relatively stable but the things being evaluated change
-- Efficiency is not the primary concern (interpreter is not the fastest approach)
-- You need to combine expressions dynamically at runtime
-- You want users to express complex filters/queries in a DSL
+- You have a simple language or DSL to interpret
+- The grammar is relatively simple and stable
+- Efficiency is not the primary concern
+- You need to evaluate expressions against different contexts
+- You want to combine simple rules into complex ones
 
 ## When NOT To Use (5 bullets)
-- The grammar is complex — use a real parser generator instead
-- Performance is critical (interpreter pattern has overhead per node)
-- The grammar changes frequently (each change requires new classes)
-- A simple regex or string comparison would suffice
-- You're building a full programming language (use ANTLR, Roslyn, etc.)
+- Complex grammars (use a parser generator like ANTLR instead)
+- Performance-critical parsing (expression trees have overhead)
+- When the grammar changes frequently
+- When a simple regex or string parsing would suffice
+- When you need compilation rather than interpretation
 
 ## Participants
-| Role | In This Example |
-|------|----------------|
+| Participant | In Our Code |
+|---|---|
 | AbstractExpression | `ISearchExpression` |
 | TerminalExpression | `FieldMatchExpression` |
-| NonterminalExpression | `AndExpression`, `OrExpression`, `NotExpression` |
+| NonTerminalExpression | `AndExpression`, `OrExpression`, `NotExpression` |
 | Context | `Product` |
-| Client/Parser | `SearchQueryParser` |
+| Client | `SearchQueryParser` |
 
 ## Variants
-- **Recursive Descent Parser**: Our approach — simple and readable
-- **Visitor-based Evaluation**: Separate evaluation logic from expression tree
-- **LINQ Expression Trees**: .NET's built-in expression tree support
+1. **Tree-based** — expression tree evaluated recursively (our implementation)
+2. **Stack-based** — reverse-polish notation evaluation
+3. **Compiled** — expressions compiled to IL for performance
 
 ## Tradeoffs Table
 | Aspect | Pro | Con |
-|--------|-----|-----|
-| Extensibility | Easy to add new expression types | Each grammar rule is a class |
-| Readability | Expression tree mirrors grammar | Complex grammars create deep hierarchies |
-| Composability | Expressions combine naturally | Performance degrades with deep nesting |
-| Testing | Each expression testable in isolation | Parser testing requires integration tests |
+|---|---|---|
+| Extensibility | Easy to add new expression types | Class per grammar rule |
+| Composability | Expressions combine naturally into trees | Complex grammars become unwieldy |
+| Testability | Each expression testable in isolation | Parser complexity grows with grammar |
 
 ## Common Interview Questions
 1. When would you use Interpreter vs. a parser generator?
-2. How does Interpreter relate to Composite pattern?
-3. How would you add operator precedence?
-4. Can you optimize an Interpreter for performance?
-5. How does this relate to LINQ expression trees?
+2. How does the Composite pattern relate to Interpreter?
+3. How would you optimize an Interpreter for performance?
+4. What's the difference between Interpreter and Strategy?
 
 ## Comparison with Similar Patterns
-| Pattern | Similarity | Difference |
-|---------|-----------|------------|
-| Composite | Both use tree structures | Composite is structural; Interpreter evaluates |
-| Visitor | Both traverse structures | Visitor separates operations; Interpreter embeds evaluation |
-| Strategy | Both encapsulate behavior | Strategy is one algorithm; Interpreter is a grammar |
+| Pattern | Key Difference |
+|---|---|
+| **Composite** | Composite structures objects; Interpreter evaluates a language |
+| **Visitor** | Visitor adds operations to a structure; Interpreter evaluates expressions |
+| **Strategy** | Strategy selects one algorithm; Interpreter combines grammar rules |
 
 ## Mermaid Diagrams
 
@@ -79,13 +84,8 @@ classDiagram
         -_left: ISearchExpression
         -_right: ISearchExpression
     }
-    class OrExpression {
-        -_left: ISearchExpression
-        -_right: ISearchExpression
-    }
-    class NotExpression {
-        -_expression: ISearchExpression
-    }
+    class OrExpression
+    class NotExpression
 
     ISearchExpression <|.. FieldMatchExpression
     ISearchExpression <|.. AndExpression
@@ -103,8 +103,8 @@ graph TD
     OR["OR"]
     NOT["NOT"]
     F1["category:Electronics"]
-    F2["brand:Apple"]
-    F3["color:Red"]
+    F2["category:Books"]
+    F3["brand:Generic"]
 
     AND --> OR
     AND --> NOT
@@ -115,5 +115,5 @@ graph TD
 
 ## Similar Patterns to Review Next
 - Composite (tree structures)
-- Visitor (traversing object structures)
-- Strategy (encapsulated algorithms)
+- Visitor (operations on object structures)
+- Strategy (algorithm selection)

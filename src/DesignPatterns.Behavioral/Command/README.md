@@ -1,66 +1,71 @@
 # Command
 
 ## Memory Hook (one-liner)
-"Turn a request into a standalone object" — like a restaurant ticket that can be placed, cancelled, or replayed.
+"Turn a request into a standalone object — like writing an order on a slip that can be filed, undone, or replayed."
 
 ## Problem
-You need to parameterize objects with operations, queue operations for later execution, or support undo/redo. Directly calling methods creates tight coupling and makes it impossible to track, replay, or reverse actions.
+An order management system needs to place, cancel, and update orders — but also needs undo/redo support and command history. Directly calling methods on the order object makes it impossible to track, queue, or reverse operations.
 
 ## Naive Approach
-Directly calling methods on the receiver with no abstraction. Undo logic scattered throughout the codebase with manual state tracking. No command history, no replay capability.
+```csharp
+// Direct method calls — no history, no undo
+order.Place();
+order.UpdateShipping("123 Main St");
+order.Cancel();
+// Oops, user wants to undo the cancel? Too late.
+```
 
 ## Pattern Solution
-Command encapsulates a request as an object, letting you parameterize clients with different requests, queue requests, log them, and support undoable operations. The invoker maintains a history stack for undo/redo.
+Encapsulate each operation as a Command object with `Execute()` and `Undo()`. An Invoker maintains a history stack, enabling undo/redo. Commands can be queued, logged, and even serialized for replay.
 
 ## When To Use (5 bullets)
 - You need undo/redo functionality
-- You want to queue, schedule, or log operations
-- You need to support transactional behavior (execute/rollback)
-- You want to decouple the object that invokes the operation from the one that performs it
-- You need to build macro commands (composite of multiple commands)
+- You want to queue or schedule operations for later execution
+- You need to log or audit every operation performed
+- You want to support macro commands (composite of multiple commands)
+- You need to decouple the object that invokes the operation from the one that performs it
 
 ## When NOT To Use (5 bullets)
 - Simple operations that don't need undo or history
-- The overhead of command objects isn't justified for trivial actions
-- You don't need to decouple invoker from receiver
-- Real-time systems where object creation overhead matters
-- When a simple callback or delegate would suffice
+- When the overhead of command objects isn't justified
+- Real-time systems where command object allocation matters
+- When operations are truly irreversible (e.g., sending an email)
+- When you'd end up with hundreds of trivial command classes
 
 ## Participants
-| Role | In This Example |
-|------|----------------|
+| Participant | In Our Code |
+|---|---|
 | Command | `ICommand` |
 | ConcreteCommand | `PlaceOrderCommand`, `CancelOrderCommand`, `UpdateShippingCommand` |
 | Receiver | `Order` |
 | Invoker | `OrderCommandInvoker` |
+| Client | Code that creates commands and passes to invoker |
 
 ## Variants
-- **Undoable Commands**: Store state needed for undo (our implementation)
-- **Macro Commands**: Composite of multiple commands executed together
-- **Queued Commands**: Commands stored for deferred execution
-- **Event Sourcing**: Commands as the source of truth for state reconstruction
+1. **Simple Command** — Execute only, no undo
+2. **Undoable Command** — Execute + Undo (our implementation)
+3. **Macro Command** — Composite of multiple commands executed as one
+4. **Queued Command** — Commands stored for deferred execution
 
 ## Tradeoffs Table
 | Aspect | Pro | Con |
-|--------|-----|-----|
-| Undo/Redo | Natural support via history stack | Must capture and store state for reversal |
-| Decoupling | Invoker doesn't know receiver details | Introduces many small command classes |
-| Logging | Easy to log/audit every operation | Memory overhead for command history |
-| Extensibility | New commands without changing invoker | Undo logic can be complex for some operations |
+|---|---|---|
+| Undo/Redo | Natural support via command history | Must capture state for undo |
+| Decoupling | Invoker doesn't know the receiver | More classes to maintain |
+| Extensibility | New commands without changing existing code | Command proliferation |
 
 ## Common Interview Questions
-1. How does Command differ from Strategy?
-2. How would you implement a macro command?
-3. How does Command relate to Event Sourcing?
-4. What happens when undo is impossible (e.g., sending an email)?
-5. How would you persist command history?
+1. How does Command pattern enable undo/redo?
+2. What's the difference between Command and Strategy?
+3. How would you implement a macro command?
+4. How does Command relate to Event Sourcing?
 
 ## Comparison with Similar Patterns
-| Pattern | Similarity | Difference |
-|---------|-----------|------------|
-| Strategy | Both encapsulate behavior | Strategy is about choosing algorithm; Command is about encapsulating action |
-| Memento | Both support undo | Memento saves state snapshots; Command saves operations |
-| Observer | Both decouple components | Observer is one-to-many notification; Command is one-to-one action |
+| Pattern | Key Difference |
+|---|---|
+| **Strategy** | Strategy chooses algorithm; Command encapsulates a request |
+| **Memento** | Memento saves state; Command saves the operation |
+| **Observer** | Observer notifies; Command encapsulates and can undo |
 
 ## Mermaid Diagrams
 
@@ -73,11 +78,9 @@ classDiagram
         +Execute()
         +Undo()
     }
-    class Order {
-        +Place()
-        +Cancel()
-        +UpdateShipping()
-    }
+    class PlaceOrderCommand
+    class CancelOrderCommand
+    class UpdateShippingCommand
     class OrderCommandInvoker {
         -_undoStack: Stack~ICommand~
         -_redoStack: Stack~ICommand~
@@ -85,19 +88,26 @@ classDiagram
         +Undo()
         +Redo()
     }
+    class Order {
+        +Place()
+        +Cancel()
+        +UpdateShipping()
+    }
 
     ICommand <|.. PlaceOrderCommand
     ICommand <|.. CancelOrderCommand
     ICommand <|.. UpdateShippingCommand
-    PlaceOrderCommand --> Order
     OrderCommandInvoker --> ICommand
+    PlaceOrderCommand --> Order
+    CancelOrderCommand --> Order
+    UpdateShippingCommand --> Order
 ```
 
 ### Sequence Diagram
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Invoker as OrderCommandInvoker
+    participant Invoker
     participant Cmd as PlaceOrderCommand
     participant Order
 
@@ -105,12 +115,13 @@ sequenceDiagram
     Invoker->>Cmd: Execute()
     Cmd->>Order: Place()
     Invoker->>Invoker: Push to undo stack
+
     Client->>Invoker: Undo()
     Invoker->>Cmd: Undo()
     Cmd->>Order: Restore(previousStatus)
 ```
 
 ## Similar Patterns to Review Next
-- Memento (state snapshot for undo)
-- Strategy (encapsulated algorithms)
-- Event Sourcing (commands as event log)
+- Memento (state snapshots for undo)
+- Strategy (algorithm selection vs. request encapsulation)
+- Chain of Responsibility (routing requests)
