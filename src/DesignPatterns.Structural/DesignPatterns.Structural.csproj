@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>DesignPatterns.Structural</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DesignPatterns.Shared\DesignPatterns.Shared.csproj" />
+  </ItemGroup>
+</Project>

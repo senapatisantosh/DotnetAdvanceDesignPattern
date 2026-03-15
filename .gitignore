@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.DotSettings
+.idea/
+*.swp
+**/appsettings.Development.json

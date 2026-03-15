@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DesignPatterns.Playground</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DesignPatterns.Creational\DesignPatterns.Creational.csproj" />
+    <ProjectReference Include="..\DesignPatterns.Structural\DesignPatterns.Structural.csproj" />
+    <ProjectReference Include="..\DesignPatterns.Behavioral\DesignPatterns.Behavioral.csproj" />
+    <ProjectReference Include="..\DesignPatterns.Enterprise\DesignPatterns.Enterprise.csproj" />
+  </ItemGroup>
+</Project>
