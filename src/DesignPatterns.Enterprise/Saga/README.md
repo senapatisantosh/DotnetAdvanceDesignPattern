@@ -1,141 +1,170 @@
-# Saga Pattern
+# Saga Pattern (Orchestrator)
 
-## Memory Hook (one-liner)
-"A chain of steps with an undo button for each — if step 3 fails, automatically undo steps 2 and 1."
+## Memory Hook
+"If step 3 fails, undo steps 2 and 1" -- coordinate a multi-step distributed transaction with compensating actions for each step.
 
 ## Problem
-A business process spans multiple services or aggregates (validate, reserve inventory, charge payment, arrange shipping). Unlike a local database transaction, you cannot wrap distributed operations in a single ACID transaction. If payment fails after inventory is reserved, you need to release the inventory.
+An order fulfillment process spans multiple services: validate the order, reserve inventory, process payment, and arrange shipping. Each step calls a different service or database. If payment processing fails after inventory has been reserved, the reservation must be released. Traditional database transactions (ACID) cannot span multiple services. Without a coordination mechanism, the system can be left in an inconsistent state where inventory is reserved but payment never went through.
 
 ## Naive Approach
-```csharp
-try
-{
-    ValidateOrder(order);
-    ReserveInventory(order);
-    ChargePayment(order);
-    ArrangeShipping(order);  // fails!
-}
-catch
-{
-    // How do we know which steps succeeded? Manual cleanup is fragile.
-    TryRefundPayment(order);
-    TryReleaseInventory(order);
-}
-```
+A single `FulfillOrder` method calls each service sequentially and wraps everything in nested try/catch blocks: `try { validate(); try { reserve(); try { pay(); try { ship(); } catch { refund(); } } catch { release(); } } catch { ... } }`. This spaghetti of nested compensation logic is fragile, hard to test, and impossible to extend. Adding a new step requires restructuring the entire nesting. Error handling for compensation failures is ad-hoc or missing.
 
 ## Pattern Solution
-Define each step as an `ISagaStep` with `Execute` and `Compensate` methods. The `SagaOrchestrator` runs steps in order. If any step fails, it compensates all previously completed steps in reverse order.
+Define each step as an `ISagaStep` with `ExecuteAsync` and `CompensateAsync` methods. A `SagaOrchestrator` runs steps in sequence. If step N fails, it automatically calls `CompensateAsync` on steps N-1 through 0 in reverse order. Steps communicate through a shared `SagaContext` dictionary. The orchestrator returns a `SagaResult` indicating success or failure, including which steps completed, which failed, and which were compensated. Adding a new step means creating a new class and calling `AddStep()`.
 
 ## When To Use
-- Multi-step business processes that span multiple aggregates or services
-- Long-running transactions where holding database locks is impractical
-- Each step has a clear compensation (undo) action
-- You need visibility into which steps completed and which were compensated
-- Microservice choreography or orchestration patterns
+- A business process spans multiple services or databases that cannot share a single ACID transaction.
+- Each step has a well-defined compensating action (undo/rollback).
+- You need visibility into which steps succeeded and which were compensated.
+- The process is sequential and step order matters.
+- Eventual consistency is acceptable (the system may be temporarily inconsistent during compensation).
 
 ## When NOT To Use
-- All operations can run in a single database transaction
-- Steps cannot be compensated (e.g., sending an email cannot be "unsent")
-- The process is simple enough for a try/catch with manual cleanup
-- Strong consistency (ACID) is required — Saga provides eventual consistency
-- The number of steps is very small (1-2) and compensation is trivial
+- All operations can be performed within a single database transaction (use a regular transaction).
+- Compensating actions are not possible or meaningful for some steps.
+- The process requires strict isolation (other transactions must not see intermediate states).
+- Steps can run in parallel and do not depend on each other (use a parallel workflow engine).
+- The number of steps is very small (1-2) and a simple try/catch is clearer.
 
-## Participants
-| Role | Class | Purpose |
-|------|-------|---------|
-| Step Interface | `ISagaStep` | Execute + Compensate contract |
-| Context | `SagaContext` | Shared mutable state between steps |
-| Orchestrator | `SagaOrchestrator` | Runs steps and compensates on failure |
-| Result | `SagaResult` | Outcome with completed/compensated steps |
-| Steps | `ValidateOrderStep`, `ReserveInventoryStep`, `ProcessPaymentStep`, `ArrangeShippingStep` | Concrete steps |
+## Key Participants
+
+| Participant | Role |
+|---|---|
+| `ISagaStep` (Step Interface) | Declares `Name`, `ExecuteAsync`, and `CompensateAsync`. |
+| `SagaOrchestrator` | Runs steps in order; compensates in reverse on failure. |
+| `SagaContext` | Shared mutable dictionary for passing data between steps. |
+| `SagaResult` | Outcome DTO: success/failure, completed steps, compensated steps, failed step, error message. |
+| `SagaStepResult` | Per-step outcome: success or failure with error message. |
+| `ValidateOrderStep` | Step 1: validates order details. Compensation: no-op (validation is side-effect-free). |
+| `ReserveInventoryStep` | Step 2: reserves stock. Compensation: releases the reservation. |
+| `ProcessPaymentStep` | Step 3: charges the customer. Compensation: issues a refund. |
+| `ArrangeShippingStep` | Step 4: books a shipment. Compensation: cancels the shipping arrangement. |
 
 ## Variants
-- **Orchestration** — a central coordinator drives the steps (shown here)
-- **Choreography** — each step publishes an event; the next step reacts
-- **Process Manager** — stateful orchestrator that persists saga state
-- **Compensating Transaction** — broader term for the undo mechanism
+- **Orchestration (this repo):** A central orchestrator controls the flow and compensation. Simple, easy to debug, but creates a single point of coordination.
+- **Choreography:** Each service publishes events and listens for events from others. No central coordinator, but harder to understand and debug the overall flow.
+- **Parallel Saga:** Some steps can run in parallel (e.g., reserve inventory and pre-authorize payment simultaneously). Requires a more sophisticated orchestrator.
+- **Saga with Timeout:** Steps have deadlines; if a step does not complete in time, it is treated as a failure and compensation begins.
+- **Persistent Saga:** The saga state is stored in a database so it can survive process restarts. Essential for long-running sagas.
 
-## Tradeoffs Table
+## Tradeoffs
+
 | Advantage | Disadvantage |
-|-----------|-------------|
-| Handles distributed transactions without 2PC | Eventually consistent, not ACID |
-| Clear compensation logic | Every step needs a compensate method |
-| Visible execution trail | Compensation can also fail (needs its own error handling) |
-| Each step is independently testable | Orchestrator adds complexity |
+|---|---|
+| Manages distributed transactions without 2PC or XA. | Eventually consistent: intermediate states are visible to other operations. |
+| Each step's compensation logic is explicit and testable. | Compensation logic can be complex and may itself fail. |
+| Adding new steps is modular (one class per step). | The orchestrator is a single point of failure (unless made persistent). |
+| Full visibility into saga execution (completed, failed, compensated steps). | Does not provide isolation: concurrent sagas may conflict. |
+| Works across heterogeneous systems (different databases, services, brokers). | Requires idempotent steps and compensations for reliability. |
 
 ## Common Interview Questions
-1. **Saga vs two-phase commit (2PC)?** 2PC locks resources across services (doesn't scale); Saga uses compensation (scales, but eventually consistent).
-2. **What if compensation fails?** Log it, retry, or escalate to manual intervention. Some systems use a "dead letter" queue.
-3. **Orchestration vs Choreography?** Orchestration has a central coordinator (easier to reason about); Choreography is fully decentralized (more resilient but harder to trace).
+1. What is the difference between the Saga pattern and two-phase commit (2PC), and when would you use each?
+2. How do you handle a situation where a compensation step itself fails?
+3. What is the difference between orchestration-based and choreography-based sagas?
 
 ## Comparison with Similar Patterns
-| Pattern | Difference |
-|---------|-----------|
-| **Unit of Work** | UoW is local (single DB); Saga is distributed |
-| **Chain of Responsibility** | CoR passes a request; Saga runs steps with compensation |
-| **Command** | Saga steps are commands with an undo (compensate) action |
 
-## Mermaid Diagrams
+| Aspect | Saga (Orchestrator) | Two-Phase Commit (2PC) |
+|---|---|---|
+| Consistency | Eventual consistency (compensating actions restore consistency). | Strong consistency (all-or-nothing atomic commit). |
+| Isolation | No isolation: intermediate states are visible. | Full isolation until commit. |
+| Coordinator | Application-level orchestrator. | Database/transaction manager. |
+| Performance | Better: no locks held across services. | Worse: locks held during prepare/commit phases. |
+| Failure handling | Compensating actions undo completed steps. | Abort rolls back all participants atomically. |
+| Scalability | Scales well across distributed services. | Does not scale well across heterogeneous systems. |
+| Complexity | Compensation logic must be explicitly written. | Handled by the transaction manager. |
 
-### Class Diagram
+## Mermaid Class Diagram
 ```mermaid
 classDiagram
     class ISagaStep {
         <<interface>>
-        +string Name
-        +ExecuteAsync(SagaContext) Task~SagaStepResult~
-        +CompensateAsync(SagaContext) Task
+        +Name : string
+        +ExecuteAsync(SagaContext, CancellationToken) Task~SagaStepResult~
+        +CompensateAsync(SagaContext, CancellationToken) Task
     }
+
     class SagaOrchestrator {
         -List~ISagaStep~ _steps
         +AddStep(ISagaStep) SagaOrchestrator
-        +ExecuteAsync(SagaContext) Task~SagaResult~
-    }
-    class SagaContext {
-        +Set~T~(key, value)
-        +Get~T~(key) T
-    }
-    class SagaResult {
-        +bool Success
-        +string FailedStep
-        +IReadOnlyList CompletedSteps
-        +IReadOnlyList CompensatedSteps
+        +ExecuteAsync(SagaContext?, CancellationToken) Task~SagaResult~
+        -CompensateAsync(completedSteps, context, ct) Task~IReadOnlyList~
     }
 
-    SagaOrchestrator --> ISagaStep
-    SagaOrchestrator --> SagaContext
-    SagaOrchestrator --> SagaResult
+    class SagaContext {
+        -Dictionary~string,object~ _data
+        +Set~T~(key, value)
+        +Get~T~(key) T
+        +TryGet~T~(key, out value) bool
+    }
+
+    class SagaResult {
+        +Success : bool
+        +CompletedSteps : IReadOnlyList~string~
+        +CompensatedSteps : IReadOnlyList~string~
+        +FailedStep : string?
+        +ErrorMessage : string?
+    }
+
+    class ValidateOrderStep {
+        +Name = "ValidateOrder"
+    }
+    class ReserveInventoryStep {
+        +Name = "ReserveInventory"
+    }
+    class ProcessPaymentStep {
+        +Name = "ProcessPayment"
+    }
+    class ArrangeShippingStep {
+        +Name = "ArrangeShipping"
+    }
+
     ISagaStep <|.. ValidateOrderStep
     ISagaStep <|.. ReserveInventoryStep
     ISagaStep <|.. ProcessPaymentStep
     ISagaStep <|.. ArrangeShippingStep
+    SagaOrchestrator o-- "*" ISagaStep : steps
+    SagaOrchestrator --> SagaContext : uses
+    SagaOrchestrator --> SagaResult : returns
 ```
 
-### Sequence Diagram (Failure Scenario)
+## Mermaid Sequence Diagram
 ```mermaid
 sequenceDiagram
-    participant O as Orchestrator
-    participant V as ValidateOrder
-    participant I as ReserveInventory
-    participant P as ProcessPayment
-    participant S as ArrangeShipping
+    participant Client
+    participant Orch as SagaOrchestrator
+    participant S1 as ValidateOrderStep
+    participant S2 as ReserveInventoryStep
+    participant S3 as ProcessPaymentStep
+    participant S4 as ArrangeShippingStep
 
-    O->>V: Execute
-    V-->>O: Success
-    O->>I: Execute
-    I-->>O: Success
-    O->>P: Execute
-    P-->>O: Failure (Payment declined)
+    Client->>Orch: ExecuteAsync(context)
 
-    Note over O: Compensating in reverse order
-    O->>I: Compensate (release inventory)
-    I-->>O: Compensated
-    O->>V: Compensate (no-op)
-    V-->>O: Compensated
-    O-->>O: SagaResult.Failed
+    Orch->>S1: ExecuteAsync(context)
+    S1-->>Orch: Ok()
+
+    Orch->>S2: ExecuteAsync(context)
+    S2->>S2: Reserve 5 units of SKU-123
+    S2-->>Orch: Ok()
+
+    Orch->>S3: ExecuteAsync(context)
+    S3->>S3: Charge $99.99
+    S3-->>Orch: Fail("Payment declined")
+
+    Note over Orch: Step 3 failed - compensate steps 2 and 1 in reverse
+
+    Orch->>S2: CompensateAsync(context)
+    S2->>S2: Release 5 units of SKU-123
+    S2-->>Orch: compensated
+
+    Orch->>S1: CompensateAsync(context)
+    S1-->>Orch: compensated (no-op)
+
+    Orch-->>Client: SagaResult(failed="ProcessPayment", compensated=["ReserveInventory","ValidateOrder"])
 ```
 
 ## Similar Patterns to Review Next
-- Unit of Work (local transactions)
-- Domain Events (step communication)
-- Outbox (reliable event publishing between steps)
+- **Outbox Pattern** -- ensures saga events are reliably published even if the broker is down.
+- **Command** -- each saga step can be modeled as a command with an undo counterpart.
+- **State Machine** -- model the saga as a state machine for complex workflows with branches and loops.
+- **Compensating Transaction** -- the fundamental building block of saga compensation.
