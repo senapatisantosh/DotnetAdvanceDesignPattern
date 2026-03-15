@@ -579,7 +579,7 @@ async Task DemoBridge()
     foreach (var channel in channels)
     {
         var fraudAlert = new FraudAlertNotification(
-            channel, "TXN-9999", 15000m, "Suspicious overseas transfer", "High");
+            channel, "TXN-9999", 15000m, "Suspicious overseas transfer", "192.168.1.100", DateTime.UtcNow);
 
         var receipt = await fraudAlert.SendAsync("security-team@example.com");
         ConsoleHelper.WriteInfo($"  [{channel.ChannelName}] {fraudAlert.NotificationType}: Priority={fraudAlert.Priority}");
@@ -799,10 +799,10 @@ Task DemoCommand()
 {
     ConsoleHelper.WriteSubHeader("Creating an order and executing commands");
 
-    var order = new Behavioral.Command.Order
+    var order = new DesignPatterns.Behavioral.Command.Order
     {
         CustomerName = "Alice Johnson",
-        Items = ["Laptop", "Mouse", "Keyboard"],
+        Items = new List<string> { "Laptop", "Mouse", "Keyboard" },
         TotalAmount = 1599.97m
     };
 
