@@ -1,324 +1,234 @@
 # Enterprise Patterns Summary
 
-Enterprise patterns address concerns that arise in **production-grade .NET applications** — data access, distributed systems, domain modeling, and configuration management. They are not part of the classic GoF catalog but are essential for professional .NET development.
+> A comprehensive reference of all enterprise and design patterns covered in this repository, with summary tables and head-to-head comparisons.
 
 ---
 
-## Summary Table
+## Table of Contents
 
-| Pattern         | Key Benefit                                | When to Use                                           | When to Avoid                                          |
-|-----------------|--------------------------------------------|-------------------------------------------------------|--------------------------------------------------------|
-| Repository      | Abstracts data access; enables testing     | Need swappable persistence; complex query logic       | Simple CRUD with EF Core; no testability benefit       |
-| Unit of Work    | Transactional consistency                  | Multiple repos must commit atomically                 | Single repo operations; EF Core SaveChanges suffices   |
-| Specification   | Composable, reusable query predicates      | Complex filtering with dynamic criteria               | Simple `Where` clauses; trivial queries                |
-| Result Pattern  | Explicit success/failure without exceptions| Expected failures (validation, not-found, conflicts)  | Truly exceptional situations (out of memory, IO)       |
-| CQRS            | Separate read/write optimization           | Read and write models differ significantly            | Simple CRUD; same model works for both                 |
-| Domain Events   | Decouples side effects from domain logic   | Actions trigger notifications, audit, projections     | No side effects needed; simple synchronous flow        |
-| Outbox          | Guaranteed event delivery                  | At-least-once delivery with transactional guarantee   | In-process events only; no distributed concerns        |
-| Null Object     | Eliminates null checks                     | Default behavior is well-defined and safe             | Null has important semantic meaning (absence of data)  |
-| Value Object    | Immutable domain primitives with equality  | Domain concepts with value semantics (Money, Email)   | Entities with identity; mutable state is needed        |
-| Saga            | Distributed transaction coordination       | Multi-service workflows with compensation             | Single-service transactions; two-phase commit works    |
-| Options Pattern | Typed, validated configuration             | App settings with validation and hot reload           | One or two simple config values                        |
-| Policy Pattern  | Composable business rules                  | Rules change independently; need AND/OR composition   | Single hardcoded rule; no combinatorial logic          |
+1. [Creational Patterns Summary](#creational-patterns-summary)
+2. [Structural Patterns Summary](#structural-patterns-summary)
+3. [Behavioral Patterns Summary](#behavioral-patterns-summary)
+4. [Enterprise Patterns Summary](#enterprise-patterns-summary-1)
+5. [Head-to-Head Comparisons](#head-to-head-comparisons)
+   - [CQRS vs CRUD](#cqrs-vs-crud)
+   - [Domain Events vs Observer](#domain-events-vs-observer)
+   - [Repository vs Specification](#repository-vs-specification)
+   - [Saga vs Two-Phase Commit (2PC)](#saga-vs-two-phase-commit-2pc)
+6. [Pattern Composition Guide](#pattern-composition-guide)
+7. [.NET-Specific Idioms](#net-specific-idioms)
 
 ---
 
-## Pattern Details
+## Creational Patterns Summary
 
-### Repository
-
-**Intent**: Mediate between the domain and data mapping layers using a collection-like interface for accessing domain objects.
-
-**Key characteristics**:
-- Exposes `Add()`, `GetById()`, `Update()`, `Delete()`, `Find(specification)`.
-- Hides the ORM (EF Core, Dapper) behind an interface.
-- Enables unit testing with in-memory implementations.
-- Often combined with Unit of Work and Specification.
-
-**Key participants**:
-- `IRepository<T>` — Generic repository interface
-- `EfRepository<T>` — EF Core implementation
-- `InMemoryRepository<T>` — Test implementation
-
-**When it earns its keep**:
-- You need to swap persistence technologies.
-- You have complex query logic that benefits from encapsulation.
-- You want to unit test business logic without a database.
+| Pattern | Use Case | Key Benefit | When to Use | When to Avoid |
+|---------|----------|-------------|-------------|---------------|
+| **Factory Method** | Creating objects without specifying the exact class | Decouples creation from usage; supports Open/Closed Principle | When a class cannot anticipate the type of objects it needs; when subclasses should decide which class to instantiate | When there is only one concrete type and no foreseeable need for variants |
+| **Simple Factory** | Centralizing creation logic in one place | Single point of creation with selection logic | When creation logic is simple and involves choosing among a few types | When creation logic is complex or types come from different families |
+| **Static Factory** | Providing named constructors for clarity | Self-documenting creation via method names like `CreateFromJson()`, `CreateDefault()` | When constructor overloads are ambiguous; when creation semantics need naming | When you need inheritance or interface-based polymorphism for the factory itself |
+| **Abstract Factory** | Creating families of related objects | Ensures consistency across product families (e.g., AWS vs Azure services) | When the system must work with multiple families of related products | When product families are unlikely to change or there is only one family |
+| **Builder** | Constructing complex objects step by step | Separates construction from representation; fluent APIs | When object construction involves many optional parameters or complex assembly | When objects are simple enough for a constructor call |
+| **Step Builder** | Enforcing a required construction sequence | Compile-time enforcement of build order via interface chaining | When certain build steps are mandatory and must occur in a specific order | When build order is irrelevant or all parameters are optional |
+| **Prototype** | Cloning existing objects to create new ones | Avoids costly initialization by copying pre-configured instances | When object creation is expensive and new objects differ slightly from existing ones | When objects are cheap to create or have no shared initial state |
+| **Singleton** | Ensuring exactly one instance of a class | Controlled access to a shared resource (connection pool, config cache) | When exactly one instance is needed for a genuinely shared resource | When used as global mutable state; prefer DI singleton lifetime in modern .NET |
 
 ---
 
-### Unit of Work
+## Structural Patterns Summary
 
-**Intent**: Maintain a list of objects affected by a business transaction and coordinate the writing out of changes and the resolution of concurrency problems.
-
-**Key characteristics**:
-- Wraps multiple repository operations in a single transaction.
-- Calls `SaveChanges()` once to commit all changes atomically.
-- In EF Core, `DbContext` already implements Unit of Work — the pattern makes it explicit.
-
-**Key participants**:
-- `IUnitOfWork` — Interface with `SaveChangesAsync()` and repository accessors
-- `EfUnitOfWork` — Wraps `DbContext`
-
----
-
-### Specification
-
-**Intent**: Encapsulate query logic in a composable, reusable object that can be combined with other specifications using AND, OR, and NOT.
-
-**Key characteristics**:
-- Each specification encapsulates a single query criterion.
-- Specifications compose: `new ActiveCustomerSpec().And(new PremiumTierSpec())`.
-- Can generate `Expression<Func<T, bool>>` for EF Core LINQ translation.
-- Separates query logic from repository and service layers.
-
-**Key participants**:
-- `Specification<T>` — Base class with `IsSatisfiedBy(T)` and `ToExpression()`
-- `AndSpecification<T>`, `OrSpecification<T>`, `NotSpecification<T>` — Combinators
-- Concrete specifications — `ActiveCustomerSpec`, `HighValueOrderSpec`
+| Pattern | Use Case | Key Benefit | When to Use | When to Avoid |
+|---------|----------|-------------|-------------|---------------|
+| **Adapter** | Making incompatible interfaces work together | Integrates third-party or legacy code without modification | When you need to use a class whose interface does not match expectations | When you control both interfaces and can unify them |
+| **Class Adapter** | Adapting via inheritance (single class) | No composition overhead; direct access to adaptee members | When the adaptee has protected members you need; when only one adaptee is involved | When you need to adapt multiple classes or when inheritance is impractical |
+| **Bridge** | Separating abstraction from implementation | Both dimensions vary independently (e.g., notification type x channel) | When you have two orthogonal dimensions of variation | When there is only one dimension of variation |
+| **Composite** | Treating individual objects and compositions uniformly | Enables tree structures with uniform operations | When you have part-whole hierarchies (file systems, UI, org charts) | When the hierarchy is flat or uniform treatment adds confusion |
+| **Decorator** | Adding behavior to objects dynamically | Extends functionality without modifying existing code; stackable | When you need to add responsibilities dynamically and transparently | When extensions are fixed and few (just modify the class) |
+| **Facade** | Simplifying access to a complex subsystem | Single simplified entry point to multiple components | When clients need a simplified view of a complex subsystem | When the subsystem is already simple or the facade becomes a God class |
+| **Flyweight** | Sharing common state across many objects | Reduces memory by sharing intrinsic state | When many objects share identical state and extrinsic state can be external | When objects are few or memory is not a constraint |
+| **Proxy** | Controlling access to an object | Adds access control, caching, lazy loading, or logging transparently | When you need virtual proxies, protection proxies, or caching proxies | When direct access is acceptable and no cross-cutting concern applies |
+| **Virtual Proxy** | Lazy-loading expensive resources | Defers creation until first access | When object initialization is expensive and may not be needed | When the object is always needed immediately |
+| **Protection Proxy** | Authorization checks before access | Enforces access control without modifying the real subject | When different users have different access levels to the same resource | When all callers have equal access rights |
+| **Caching Proxy** | Caching results of expensive operations | Avoids redundant computations or I/O | When the same operation is called repeatedly with the same inputs | When results change frequently or caching introduces stale data risks |
 
 ---
 
-### Result Pattern
+## Behavioral Patterns Summary
 
-**Intent**: Represent the outcome of an operation as a return type (success or failure) instead of throwing exceptions for expected failures.
-
-**Key characteristics**:
-- `Result<T>` carries either a value (success) or an error (failure).
-- Eliminates exception-based control flow for validation, not-found, and conflict scenarios.
-- Enables railway-oriented programming — chain operations that each return `Result<T>`.
-- Makes error handling explicit in method signatures.
-
-**Key participants**:
-- `Result<T>` — Generic result type
-- `Result` — Non-generic result for void operations
-- `Error` — Error type with code and message
-
----
-
-### CQRS (Command Query Responsibility Segregation)
-
-**Intent**: Separate the model for reading data (queries) from the model for updating data (commands).
-
-**Key characteristics**:
-- Commands change state and return nothing (or a Result).
-- Queries return data and have no side effects.
-- Each side can be optimized independently (e.g., denormalized read models).
-- Commands and queries are handled by separate handlers.
-
-**Key participants**:
-- `ICommand`, `ICommandHandler<TCommand>` — Write side
-- `IQuery<TResult>`, `IQueryHandler<TQuery, TResult>` — Read side
-- Command/query dispatcher — Routes to the correct handler
+| Pattern | Use Case | Key Benefit | When to Use | When to Avoid |
+|---------|----------|-------------|-------------|---------------|
+| **Chain of Responsibility** | Passing requests along a chain of handlers | Decouples sender from receiver; each handler decides to process or pass | Multiple objects may handle a request; middleware pipelines | There is always exactly one handler |
+| **Command** | Encapsulating requests as objects | Enables undo/redo, queuing, logging, macro recording | When you need to parameterize actions, queue operations, or support undo | Simple actions without undo or queuing needs |
+| **Interpreter** | Evaluating language grammar or expressions | Implements DSLs and rule engines using expression trees | Simple grammar or expression evaluation (filters, math) | Complex grammar (use a parser generator) |
+| **Iterator** | Traversing collections without exposing internals | Uniform traversal interface | Custom collections needing traversal | Rarely avoided in C# (IEnumerable is built-in) |
+| **Mediator** | Reducing direct communication between components | Centralizes interaction; components do not reference each other | Many components interact in complex ways (chat, UI coordination) | Simple direct relationships between components |
+| **Memento** | Capturing and restoring object state | Undo/redo via snapshots without exposing internals | Save/restore state (text editors, game saves) | Trivially small state or no undo business need |
+| **Observer** | Notifying dependents of state changes | Loose coupling between publisher and subscribers | One change should notify many; event-driven architectures | Only one subscriber exists |
+| **Event-Based Observer** | Using .NET native events for notifications | Leverages built-in `event`/`EventHandler<T>` mechanism | Idiomatic .NET in-process event handling | Cross-process or persistent event scenarios |
+| **State** | Changing behavior based on internal state | Eliminates complex conditionals for state-dependent behavior | Behavior changes significantly based on state (order processing) | Only 2-3 simple states (if/switch is clearer) |
+| **Strategy** | Selecting algorithms at runtime | Algorithm interchangeability without modifying context | Choose between algorithms at runtime (pricing, sorting, payments) | Only one algorithm with no realistic alternative |
+| **Template Method** | Defining algorithm skeleton with customizable steps | Enforces structure while allowing step customization | Classes share an algorithm but differ in specific steps (exporters) | No fixed algorithm structure or steps do not vary |
+| **Visitor** | Adding operations to object structures without modifying them | New operations without changing element classes | Stable object structure with frequently added operations | Object structure changes frequently |
 
 ---
 
-### Domain Events
+## Enterprise Patterns Summary
 
-**Intent**: Publish events from domain aggregates to trigger side effects (notifications, projections, audit trails) without coupling the aggregate to those concerns.
-
-**Key characteristics**:
-- Events are raised within the domain model.
-- Handlers are registered separately and process events asynchronously or synchronously.
-- Keeps the domain model focused on business rules, not side effects.
-- Often combined with Outbox for reliable delivery.
-
-**Key participants**:
-- `IDomainEvent` — Marker interface for events
-- `OrderPlacedEvent`, `PaymentReceivedEvent` — Concrete events
-- `IDomainEventHandler<TEvent>` — Handler interface
-- `IDomainEventDispatcher` — Dispatches events to registered handlers
-
----
-
-### Outbox
-
-**Intent**: Store domain events in a transactional outbox table alongside the business data change, then relay them to the message broker in a separate process. This guarantees at-least-once delivery.
-
-**Key characteristics**:
-- Events are written to an `OutboxMessage` table in the same database transaction as the business operation.
-- A background worker polls the outbox and publishes events to the message broker.
-- Eliminates the dual-write problem (database + message broker).
-- Events are idempotent — consumers must handle duplicates.
-
-**Key participants**:
-- `OutboxMessage` — Entity stored in the database
-- `OutboxWriter` — Writes events to the outbox table
-- `OutboxProcessor` — Background service that relays events
+| Pattern | Use Case | Key Benefit | When to Use | When to Avoid |
+|---------|----------|-------------|-------------|---------------|
+| **Repository** | Abstracting data access behind a collection-like interface | Decouples domain from data access; enables testing | Need swappable persistence; complex query logic | Simple CRUD with EF Core (DbContext suffices) |
+| **Unit of Work** | Coordinating writes across repositories in one transaction | Atomic multi-repository commits | Multiple repos must commit together | Single repo; EF Core SaveChanges suffices |
+| **Specification** | Encapsulating query logic as composable objects | Reusable, testable, combinable query criteria | Complex filtering with dynamic criteria | Simple `Where` clauses; trivial queries |
+| **Result Pattern** | Representing operation outcomes without exceptions | Explicit success/failure; no exception-driven control flow | Expected failures (validation, not-found, conflicts) | Truly exceptional situations (OOM, IO failures) |
+| **CQRS** | Separating read and write models | Independent optimization, scaling, and modeling | Read/write models differ significantly; high read volume | Simple CRUD with same read/write shape |
+| **Domain Events** | Decoupling side effects from domain operations | Domain triggers events; handlers react independently | Actions trigger notifications, audit, projections | No side effects; simple synchronous flow |
+| **Outbox** | Ensuring reliable event publishing with database writes | At-least-once delivery; eliminates dual-write problem | Reliable event delivery alongside transactional writes | In-process events only; no distributed concerns |
+| **Saga** | Managing distributed transactions across services | Consistency without distributed locks via compensation | Multi-service workflows requiring all-or-nothing | Single-database transactions; 2PC is viable |
+| **Null Object** | Eliminating null checks with do-nothing implementations | Simplifies code; adheres to polymorphism | Default behavior is well-defined and safe | Null has semantic meaning (absence of data) |
+| **Value Object** | Representing concepts defined by value, not identity | Immutability, structural equality, self-validation | Domain concepts like Money, Email, DateRange | Objects needing unique identity (use Entity) |
+| **Options Pattern** | Binding config sections to strongly typed objects | Type-safe configuration with validation and hot-reload | App settings mapping to logical groups | One or two simple config values |
+| **Policy Pattern** | Defining composable business/resilience rules | Separates rule/resilience concerns from business logic | Rules that compose (AND/OR); transient failure handling | Single hardcoded rule; no combinatorial logic |
 
 ---
 
-### Null Object
-
-**Intent**: Provide an object with a defined neutral ("do nothing") behavior as a surrogate for the absence of an object.
-
-**Key characteristics**:
-- Implements the same interface as the real object but does nothing.
-- Eliminates null checks throughout the codebase.
-- Makes "no behavior" explicit and documented.
-
-**Key participants**:
-- `ILogger` — Interface
-- `NullLogger` — No-op implementation (logs nothing)
-- `IDiscountStrategy` — Interface
-- `NoDiscount` — Returns the original price unchanged
-
----
-
-### Value Object
-
-**Intent**: Model domain concepts that have no identity — they are defined entirely by their attributes and compared by value, not reference.
-
-**Key characteristics**:
-- Immutable after creation.
-- Equality is based on all properties (value equality, not reference equality).
-- Self-validating — invalid states are impossible.
-- Implemented as C# `record` types for automatic equality and immutability.
-
-**Key participants**:
-- `Money` — Amount + Currency, with arithmetic operations
-- `EmailAddress` — Validated email with format enforcement
-- `Address` — Street, City, State, Zip with equality
-
----
-
-### Saga
-
-**Intent**: Manage a long-running distributed process as a sequence of local transactions, each with a compensating action to handle failures.
-
-**Key characteristics**:
-- Each step is a local transaction in one service.
-- If a step fails, compensating actions undo previous steps.
-- Two styles: **orchestration** (central coordinator) and **choreography** (event-driven).
-- This repo demonstrates orchestration.
-
-**Key participants**:
-- `ISaga` — Saga definition with steps and compensations
-- `SagaOrchestrator` — Executes steps and triggers compensations on failure
-- `SagaStep` — Individual step with `Execute()` and `Compensate()`
-
----
-
-### Options Pattern
-
-**Intent**: Bind configuration sections from `appsettings.json` to strongly-typed C# classes with validation and hot-reload support.
-
-**Key characteristics**:
-- `IOptions<T>` — Singleton, read once at startup.
-- `IOptionsSnapshot<T>` — Scoped, re-reads per request.
-- `IOptionsMonitor<T>` — Singleton with change notifications.
-- Data annotation validation via `ValidateDataAnnotations()`.
-
-**Key participants**:
-- Configuration POCO class with `[Required]`, `[Range]`, etc.
-- `services.Configure<T>(configuration.GetSection("..."))` — Registration
-- Constructor injection of `IOptions<T>` — Consumption
-
----
-
-### Policy Pattern
-
-**Intent**: Encapsulate business rules as first-class objects that can be composed (AND/OR), evaluated independently, and tested in isolation.
-
-**Key characteristics**:
-- Each policy answers one question: "Is this allowed/applicable?"
-- Policies compose: `new MinimumOrderPolicy().And(new CustomerInGoodStandingPolicy())`.
-- Similar to Specification but focused on business rules rather than query criteria.
-- Policies can carry violation messages for user feedback.
-
-**Key participants**:
-- `IPolicy<T>` — Policy interface with `IsApplicable(T)` and `Violations`
-- Concrete policies — `MinimumOrderPolicy`, `FraudCheckPolicy`
-- `CompositePolicy<T>` — Combines multiple policies with AND/OR logic
-
----
-
-## Comparison Notes
+## Head-to-Head Comparisons
 
 ### CQRS vs CRUD
 
-| Aspect              | CQRS                                        | CRUD                                        |
-|---------------------|---------------------------------------------|---------------------------------------------|
-| **Models**          | Separate read and write models              | Single model for everything                 |
-| **Complexity**      | Higher (more classes, possible event store) | Lower (one model, one repository)           |
-| **Scalability**     | Read/write sides scale independently        | Scale together                              |
-| **Consistency**     | Eventual (if async projections)             | Strong (single model, single DB)            |
-| **Use when**        | Read/write shapes differ; high read volume  | Simple domain; same shape for read/write    |
-| **Avoid when**      | Simple CRUD app; team unfamiliar with CQRS  | Read performance is critical; shapes differ |
+| Dimension | CQRS | CRUD |
+|-----------|------|------|
+| **Core Idea** | Separate models and paths for reads and writes | Single model for all operations |
+| **Data Model** | Read model optimized for queries; write model for invariants | One model serves both reads and writes |
+| **Scalability** | Read/write sides scale independently | Scaling is uniform; reads and writes compete |
+| **Complexity** | Higher: two models, synchronization, eventual consistency | Lower: one model, one path, immediate consistency |
+| **Consistency** | Often eventually consistent between stores | Immediately consistent |
+| **Performance** | Reads can use denormalized views, caches, search indices | Reads and writes share the same tables and indexes |
+| **Team Skill Required** | High: must understand eventual consistency, projections | Low: standard CRUD patterns |
+| **Testing** | More complex: must test both sides and synchronization | Simpler: one model, one path |
+| **Best For** | High-read/low-write, complex domains, event sourcing | Simple CRUD apps, small teams, rapid prototyping |
+| **Avoid When** | App is simple CRUD; reads and writes have the same shape | Read performance suffers; models have diverged |
+| **.NET Implementation** | Separate `ICommandHandler<T>` / `IQueryHandler<T>` | `DbContext` with `DbSet<T>` for all operations |
 
-**One sentence**: CQRS pays off when reads and writes have **different shapes, frequencies, or scaling needs**; CRUD is simpler when they do not.
-
-### Domain Events vs Observer
-
-| Aspect              | Domain Events                               | Observer                                    |
-|---------------------|---------------------------------------------|---------------------------------------------|
-| **Scope**           | Application/system level                    | Object level                                |
-| **Coupling**        | Fully decoupled via event dispatcher        | Subject knows observer interface            |
-| **Delivery**        | Can be async, persisted, replayed           | Typically synchronous, in-memory            |
-| **Origin**          | DDD / enterprise architecture              | GoF pattern catalog                         |
-| **Use when**        | Side effects from domain operations         | Simple in-process notifications             |
-
-**One sentence**: Domain Events are the **enterprise-scale evolution** of Observer, adding persistence, async delivery, and cross-boundary communication.
-
-### Repository vs Specification
-
-| Aspect              | Repository                                  | Specification                               |
-|---------------------|---------------------------------------------|---------------------------------------------|
-| **Focus**           | Data access abstraction                     | Query criteria encapsulation                |
-| **Responsibility**  | CRUD operations                             | Filter/selection logic                      |
-| **Reusability**     | Per-entity type                             | Per-business rule (combinable)              |
-| **Relationship**    | Repository *uses* Specification             | Specification is *passed to* Repository     |
-
-**One sentence**: Repository **manages persistence**; Specification **defines what to query** — they are complementary, not competing.
-
-### Result Pattern vs Exceptions
-
-| Aspect              | Result Pattern                              | Exceptions                                  |
-|---------------------|---------------------------------------------|---------------------------------------------|
-| **For**             | Expected failures (validation, not-found)   | Unexpected failures (IO, null ref)          |
-| **Performance**     | No stack unwinding                          | Expensive stack trace capture               |
-| **Explicitness**    | Failure is visible in the return type       | Failure is invisible until try/catch        |
-| **Composition**     | Chain with `Map()`, `Bind()`, `Match()`     | Nested try/catch blocks                     |
-
-### Outbox vs Direct Publishing
-
-| Aspect              | Outbox Pattern                              | Direct Publish                              |
-|---------------------|---------------------------------------------|---------------------------------------------|
-| **Consistency**     | Transactional with business data            | Dual-write problem (DB + broker)            |
-| **Delivery**        | At-least-once guaranteed                    | May lose events on broker failure           |
-| **Complexity**      | Higher (outbox table, background processor) | Lower (single publish call)                 |
-| **Use when**        | Event delivery must be reliable             | Best-effort delivery is acceptable          |
+**Migration trigger:** Move from CRUD to CQRS when your read queries are becoming complex projections, read performance suffers from write contention, or your read and write models have diverged.
 
 ---
 
-## Enterprise Pattern Composition
+### Domain Events vs Observer
 
-These patterns are most powerful when composed together:
+| Dimension | Domain Events | Observer (GoF) |
+|-----------|---------------|----------------|
+| **Core Idea** | Domain raises semantically meaningful events; handlers react | Subject notifies registered observers of state changes |
+| **Coupling** | Zero coupling: events dispatched via mediator/bus | Subject holds references to observer interface |
+| **Scope** | Cross-aggregate, cross-bounded-context, cross-service | Within a single subsystem or object graph |
+| **Payload** | Rich event objects with domain semantics (`OrderPlacedEvent`) | Raw state change data or the subject itself |
+| **Dispatch** | Async or deferred; often after `SaveChanges()` | Usually synchronous and immediate |
+| **Registration** | Handlers discovered via DI container | Observers explicitly subscribe/unsubscribe |
+| **Persistence** | Events can be persisted (event sourcing, outbox) | Notifications are ephemeral |
+| **Idempotency** | Required (events may be replayed) | Not typically needed |
+| **Best For** | DDD, microservices, event sourcing, audit trails | UI events, real-time notifications, in-process pub/sub |
+| **.NET Implementation** | `IDomainEvent` + `INotificationHandler<T>` via MediatR | `event EventHandler<T>` or `IObservable<T>` |
+
+**Key distinction:** Domain events are first-class business concepts describing something that happened. Observer notifications are a technical mechanism for change propagation.
+
+---
+
+### Repository vs Specification
+
+| Dimension | Repository | Specification |
+|-----------|-----------|---------------|
+| **Core Idea** | Collection-like interface for data access | Composable objects encapsulating query criteria |
+| **Responsibility** | **How** to access data (CRUD operations) | **What** data to access (filtering, sorting, includes) |
+| **Interface Surface** | `GetById()`, `Add()`, `Save()`, `Delete()`, `Find(spec)` | `IsSatisfiedBy(entity)`, `ToExpression()` |
+| **Composition** | Repositories do not compose; each is standalone | Specifications compose via AND, OR, NOT |
+| **Testability** | Mock the repository interface | Unit test specifications against in-memory objects |
+| **Reusability** | Per-entity type | Per-business-rule, reusable across contexts |
+| **Common Mistake** | Adding a new method for every query variant | Over-specifying trivial one-off queries |
+| **Relationship** | Repository *uses* specifications | Specification is *passed to* repository |
+
+**Best used together:**
+```csharp
+var spec = new ActiveOrdersSpec(customerId).And(new HighValueOrdersSpec(1000m));
+var orders = await _repository.ListAsync(spec);
+```
+
+---
+
+### Saga vs Two-Phase Commit (2PC)
+
+| Dimension | Saga | Two-Phase Commit (2PC) |
+|-----------|------|----------------------|
+| **Core Idea** | Sequence of local transactions with compensating actions | Coordinator ensures all participants commit or all abort |
+| **Consistency** | Eventually consistent | Strongly consistent |
+| **Locking** | No distributed locks; each step commits immediately | Participants lock resources during prepare phase |
+| **Failure Handling** | Compensating transactions undo completed steps | Coordinator tells all to abort if any fails |
+| **Performance** | Higher throughput: no cross-service locks | Lower throughput: locks held across participants |
+| **Availability** | Participants operate independently; orchestrator retries | Coordinator failure blocks all participants |
+| **Network Tolerance** | Tolerates partitions (compensates later) | Vulnerable to partitions (participants may block) |
+| **Complexity** | Must design compensation for every step; idempotency required | Standardized protocol but needs reliable coordinator |
+| **CAP Theorem** | Favors AP (Availability + Partition tolerance) | Favors CP (Consistency + Partition tolerance) |
+| **Isolation** | No isolation between steps (other transactions see intermediate state) | Full isolation during prepare/commit |
+| **Duration** | Supports long-running processes (minutes, hours) | Short-lived (seconds, held locks) |
+| **Best For** | Microservices, long-running workflows, cross-service | Co-located databases, strong consistency required |
+| **.NET Implementation** | Custom orchestrator, MassTransit, NServiceBus | `TransactionScope` with distributed transaction |
+
+**Decision rule:** Distributed services across a network -> Saga. Co-located resources needing strong consistency -> 2PC.
+
+**Saga compensation flow:**
+```
+1. Create Order       --> OK
+2. Reserve Inventory  --> OK
+3. Charge Payment     --> FAIL
+4. Compensate: Release Inventory (undo step 2)
+5. Compensate: Cancel Order (undo step 1)
+```
+
+---
+
+## Pattern Composition Guide
+
+### Common Pattern Compositions
+
+| Composition | Purpose | Example |
+|-------------|---------|---------|
+| Repository + Unit of Work | Transactional multi-repository data access | Save Order and OrderItems atomically |
+| Repository + Specification | Flexible, composable queries | `repo.ListAsync(activeSpec.And(premiumSpec))` |
+| CQRS + Domain Events | Side effects triggered by command handling | Command handler raises `OrderPlacedEvent` |
+| Domain Events + Outbox | Reliable cross-service event delivery | Event saved in outbox table, relayed by background worker |
+| Outbox + Saga | Distributed transaction management | Saga steps triggered by outbox-published events |
+| Strategy + Factory Method | Runtime algorithm selection with creation decoupling | Factory creates the right pricing strategy |
+| Decorator + Proxy | Layered cross-cutting concerns | Caching proxy wrapped in a logging decorator |
+| Result Pattern + Specification | Validated query results with explicit errors | Specification validation returns `Result<T>` |
+| Builder + Prototype | Complex object construction from templates | Clone prototype, then customize with builder |
+| Command + Memento | Full undo/redo support | Command saves memento before execution |
+| Composite + Visitor | Operations on tree structures | Visitor traverses composite tree |
+| Policy + Result Pattern | Business rule evaluation with clear errors | Policy returns `Result` with violation messages |
+
+### Composition Diagram
 
 ```mermaid
 graph TD
     subgraph "Data Access Layer"
-        REPO[Repository] -->|"uses"| SPEC[Specification]
-        REPO -->|"managed by"| UOW[Unit of Work]
+        REPO[Repository] -->|uses| SPEC[Specification]
+        REPO -->|managed by| UOW[Unit of Work]
     end
 
     subgraph "Domain Layer"
-        VO[Value Object] -->|"used in"| AGG[Aggregates]
-        AGG -->|"raises"| DE[Domain Events]
-        POL[Policy Pattern] -->|"validates"| AGG
-        RES[Result Pattern] -->|"returned by"| AGG
+        VO[Value Object] -->|used in| AGG[Aggregates]
+        AGG -->|raises| DE[Domain Events]
+        POL[Policy Pattern] -->|validates| AGG
+        RES[Result Pattern] -->|returned by| AGG
     end
 
     subgraph "Application Layer"
-        CQRS[CQRS] -->|"commands use"| REPO
-        CQRS -->|"queries use"| REPO
-        DE -->|"persisted via"| OUT[Outbox]
+        CQRS[CQRS] -->|commands use| REPO
+        CQRS -->|queries use| REPO
+        DE -->|persisted via| OUT[Outbox]
     end
 
     subgraph "Infrastructure"
-        OUT -->|"orchestrates"| SAGA[Saga]
-        OPT[Options Pattern] -->|"configures"| REPO
-        NULL[Null Object] -->|"safe defaults"| REPO
+        OUT -->|orchestrates| SAGA[Saga]
+        OPT[Options Pattern] -->|configures| REPO
+        NULL[Null Object] -->|safe defaults| REPO
     end
 
     style REPO fill:#4CAF50,color:#fff
@@ -327,43 +237,67 @@ graph TD
     style VO fill:#9C27B0,color:#fff
 ```
 
-### Common Compositions
-
-| Composition                           | Purpose                                    |
-|---------------------------------------|--------------------------------------------|
-| Repository + Unit of Work             | Transactional data access                  |
-| Repository + Specification            | Flexible, composable queries               |
-| CQRS + Domain Events                  | Side effects from command handling         |
-| Domain Events + Outbox                | Reliable cross-service communication       |
-| Outbox + Saga                         | Distributed transaction management         |
-| Result Pattern + Specification        | Validated query results                    |
-| Policy Pattern + Result Pattern       | Business rule evaluation with clear errors |
-| Options Pattern + any pattern         | Externalized configuration for any service |
-| Null Object + Repository              | Safe fallback when entity not found        |
-
 ---
 
 ## .NET-Specific Idioms
 
-| Pattern         | .NET Idiom                                                              |
-|-----------------|-------------------------------------------------------------------------|
-| Repository      | Generic `IRepository<T>` backed by EF Core `DbSet<T>`                  |
-| Unit of Work    | EF Core `DbContext` (already implements UoW); explicit `IUnitOfWork`    |
-| Specification   | `Expression<Func<T, bool>>` for EF Core LINQ translation               |
-| Result Pattern  | FluentResults, Ardalis.Result, or custom `Result<T>` record            |
-| CQRS            | MediatR `IRequest`/`IRequestHandler`, or custom dispatcher             |
-| Domain Events   | MediatR `INotification`/`INotificationHandler`                         |
-| Outbox          | EF Core `SaveChangesInterceptor` + background `IHostedService`         |
-| Null Object     | `NullLogger<T>` from `Microsoft.Extensions.Logging`                    |
-| Value Object    | C# `record` types with init-only properties                            |
-| Saga            | MassTransit Sagas, NServiceBus Sagas, or custom orchestrator           |
-| Options Pattern | `IOptions<T>`, `IOptionsSnapshot<T>`, `IOptionsMonitor<T>`            |
-| Policy Pattern  | Custom `IPolicy<T>` or Polly library for resilience policies           |
+| Pattern | .NET Idiom |
+|---------|-----------|
+| Factory Method | `static Create()` methods; `IServiceProvider` in composition root |
+| Abstract Factory | Interface with multiple `Create*()` methods; DI-registered families |
+| Builder | Fluent API with method chaining; Step Builder via interface sequence |
+| Singleton | `services.AddSingleton<T>()`; `Lazy<T>` for thread safety |
+| Adapter | Wrapper class implementing target interface; extension methods |
+| Decorator | DI decoration via Scrutor; manual wrapping in `Program.cs` |
+| Proxy | `DispatchProxy` for dynamic proxies; Castle.Core for interception |
+| Strategy | `Func<T>` delegates; DI-resolved implementations |
+| Observer | `event EventHandler<T>`; `IObservable<T>` / `IObserver<T>` |
+| Command | MediatR `IRequest<T>` / `IRequestHandler<T>` |
+| Chain of Responsibility | ASP.NET Core middleware pipeline; MediatR pipeline behaviors |
+| State | Enum + switch (simple); State objects (complex) |
+| Repository | Generic `IRepository<T>` backed by EF Core `DbSet<T>` |
+| Unit of Work | EF Core `DbContext`; explicit `IUnitOfWork` wrapper |
+| Specification | `Expression<Func<T, bool>>` for EF Core LINQ translation |
+| Result Pattern | FluentResults, Ardalis.Result, or custom `Result<T>` record |
+| CQRS | MediatR `IRequest` / `IRequestHandler`, or custom dispatcher |
+| Domain Events | MediatR `INotification` / `INotificationHandler` |
+| Outbox | EF Core `SaveChangesInterceptor` + `IHostedService` |
+| Null Object | `NullLogger<T>` from `Microsoft.Extensions.Logging` |
+| Value Object | C# `record` types with init-only properties |
+| Saga | MassTransit / NServiceBus sagas, or custom orchestrator |
+| Options Pattern | `IOptions<T>`, `IOptionsSnapshot<T>`, `IOptionsMonitor<T>` |
+| Policy Pattern | Custom `IPolicy<T>`; Polly for resilience policies |
+
+---
+
+## Quick Selection by Problem Domain
+
+| Problem Domain | Primary Pattern(s) | Supporting Pattern(s) |
+|---------------|--------------------|-----------------------|
+| Object creation complexity | Factory Method, Abstract Factory, Builder | Prototype |
+| Algorithm variation | Strategy | Template Method |
+| State-dependent behavior | State | Strategy (simple states) |
+| Cross-cutting concerns | Decorator, Proxy | Chain of Responsibility |
+| Complex subsystem access | Facade | Adapter |
+| Third-party integration | Adapter | Facade |
+| Event-driven architecture | Observer, Domain Events | Mediator, Outbox |
+| Distributed transactions | Saga | Outbox, Domain Events |
+| Data access abstraction | Repository | Specification, Unit of Work |
+| Resilience / fault tolerance | Policy Pattern | Retry, Circuit Breaker |
+| Configuration management | Options Pattern | Builder |
+| Error handling | Result Pattern | Null Object |
+| Complex object structures | Composite | Visitor, Iterator |
+| Undo/redo support | Command, Memento | -- |
+| Memory optimization | Flyweight | Prototype |
+| Request processing pipeline | Chain of Responsibility | Mediator |
+| Multi-dimensional variation | Bridge | Strategy |
+| Expression evaluation | Interpreter | Visitor |
 
 ---
 
 ## Next Steps
 
-- [Anti-Patterns](anti-patterns.md) — Repository overuse, fake CQRS, and anemic domain models
-- [Comparison Maps](comparison-maps.md) — CQRS vs CRUD and Domain Events vs Observer deep dives
-- [Interview Cheat Sheet](interview-revision-cheatsheet.md) — Quick revision for enterprise patterns
+- [Anti-Patterns](anti-patterns.md) -- Common misuses: repository overuse, fake CQRS, anemic domain models
+- [Comparison Maps](comparison-maps.md) -- Side-by-side visual comparisons with Mermaid diagrams
+- [Decision Matrix](decision-matrix.md) -- Problem-to-pattern mapping with decision flowchart
+- [Interview Cheat Sheet](interview-revision-cheatsheet.md) -- Quick revision for all patterns

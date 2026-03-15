@@ -1,121 +1,163 @@
 # Options Pattern
 
-## Memory Hook (one-liner)
-"Strongly-typed configuration classes that the framework keeps in sync with appsettings.json — no more magic strings."
+## Memory Hook
+"Strongly-typed configuration that reloads itself" -- bind configuration sections to POCO classes and inject them with the right lifetime semantics.
 
 ## Problem
-Reading configuration via `IConfiguration["Smtp:Host"]` uses magic strings, returns raw strings, lacks validation, and scatters config access across the codebase. There is no compile-time safety, and typos in keys cause silent failures.
+A multi-tenant SaaS application needs per-tenant configuration: connection strings, themes, storage quotas, user limits, and premium flags. Configuration comes from `appsettings.json`, environment variables, and secret stores. Without the Options pattern, services either read raw `IConfiguration` strings (stringly-typed, no validation, no IntelliSense) or build ad-hoc configuration classes that do not integrate with the .NET configuration pipeline. Reloading configuration at runtime without restarting the application is impossible.
 
 ## Naive Approach
-```csharp
-// Magic strings everywhere
-var host = _config["Smtp:Host"];       // string — might be null
-var port = int.Parse(_config["Smtp:Port"]); // manual parsing — might throw
-var ssl = bool.Parse(_config["Smtp:UseSsl"]); // more manual parsing
-```
+Inject `IConfiguration` directly and call `config["Tenants:TenantA:ConnectionString"]` everywhere. Typos in key names cause silent `null` returns. There is no compile-time validation, no grouping of related settings, and no way to validate that required settings are present at startup. Changing a configuration key requires a global find-and-replace across the codebase.
 
 ## Pattern Solution
-Bind configuration sections to strongly-typed classes. The framework provides three interfaces for different lifetimes:
-- `IOptions<T>` — singleton, read once at startup
-- `IOptionsSnapshot<T>` — scoped, re-reads per request, supports named options
-- `IOptionsMonitor<T>` — singleton with change notifications
+Define POCO classes (`TenantOptions`, `SmtpOptions`, `FeatureFlags`) with properties matching configuration sections. Use `services.Configure<TenantOptions>(config.GetSection("Tenants"))` to bind them. Inject configuration using the appropriate lifetime wrapper: `IOptions<T>` for singleton settings read once at startup, `IOptionsSnapshot<T>` for scoped settings that refresh per request, or `IOptionsMonitor<T>` for singleton-safe settings with real-time change notifications. Named options support per-tenant configuration by resolving `IOptionsSnapshot<TenantOptions>` with a tenant name.
 
 ## When To Use
-- Any configuration that benefits from compile-time type safety
-- Validation of configuration at startup (fail fast on missing values)
-- Named/per-tenant configuration with `IOptionsSnapshot<T>`
-- Feature flags that change at runtime (`IOptionsMonitor<T>`)
-- Clean separation of configuration from business logic
+- You need strongly-typed, validated configuration in an ASP.NET Core application.
+- Configuration comes from multiple sources (JSON, environment variables, Azure Key Vault) and should be unified.
+- Per-tenant or per-environment configuration requires named options.
+- You want configuration to reload at runtime without application restart.
+- Validation rules must run at startup to catch misconfiguration early.
 
 ## When NOT To Use
-- Trivial apps with 1-2 config values
-- Configuration that must be fetched from an external service at runtime (use a custom provider)
-- Dynamic config that changes faster than the reload interval
-- CLI tools where DI is not used
-- You only need environment variables (use `Environment.GetEnvironmentVariable`)
+- The application has only one or two simple settings (a direct `IConfiguration` read is simpler).
+- Configuration never changes at runtime and does not benefit from reload semantics.
+- You are not using the .NET hosting/DI infrastructure.
+- The configuration structure is deeply nested and does not map naturally to flat POCO classes.
+- Feature flags need A/B testing or gradual rollout (use a dedicated feature flag system like LaunchDarkly).
 
-## Participants
-| Role | Class | Purpose |
-|------|-------|---------|
-| Options Class | `SmtpOptions` | SMTP configuration with validation |
-| Options Class | `FeatureFlags` | Runtime-toggleable feature flags |
-| Options Class | `TenantOptions` | Per-tenant named configuration |
-| Example | `OptionsExample` | Shows IOptions / IOptionsSnapshot / IOptionsMonitor |
+## Key Participants
+
+| Participant | Role |
+|---|---|
+| `TenantOptions` | POCO with tenant-specific settings: name, connection string, theme, max users, premium flag, storage quota. |
+| `StorageQuota` | Nested POCO for storage limit tracking with `UsagePercentage` and `IsNearLimit` computed properties. |
+| `SmtpOptions` | POCO for email server configuration: host, port, credentials, TLS. |
+| `FeatureFlags` | POCO for feature toggles: enable/disable features at runtime. |
+| `OptionsExample` | Demonstrates registration and consumption of all three option types. |
+| `IOptions<T>` | Singleton lifetime. Reads configuration once at startup. Does not reload. |
+| `IOptionsSnapshot<T>` | Scoped lifetime. Refreshes per request. Supports named options. |
+| `IOptionsMonitor<T>` | Singleton lifetime. Provides `OnChange` callback for real-time reload. |
 
 ## Variants
-- **IOptions&lt;T&gt;** — singleton, never refreshes (cheapest)
-- **IOptionsSnapshot&lt;T&gt;** — scoped, refreshes per request, supports named options
-- **IOptionsMonitor&lt;T&gt;** — singleton, pushes change notifications
-- **IOptionsFactory&lt;T&gt;** — custom creation logic
-- **ValidateOnStart** — validates options eagerly at startup (fail fast)
+- **Named Options:** Resolve different configurations by name (e.g., `IOptionsSnapshot<TenantOptions>` with name "TenantA"). Ideal for multi-tenant systems.
+- **Options Validation:** Use `ValidateDataAnnotations()` or `Validate()` with a custom function to catch misconfiguration at startup.
+- **Post-Configure:** Apply transformations after initial binding with `PostConfigure<T>` (e.g., set defaults, compute derived values).
+- **Options with DI:** Create an `IConfigureOptions<T>` implementation that resolves other services to configure options dynamically.
 
-## Tradeoffs Table
+## Tradeoffs
+
 | Advantage | Disadvantage |
-|-----------|-------------|
-| Compile-time type safety | Requires DI container setup |
-| Built-in validation | Three interfaces can be confusing |
-| Named options for multi-tenant | Snapshot has per-request allocation |
-| Change notifications with Monitor | Options classes must be configured in Startup |
+|---|---|
+| Strongly-typed: compile-time safety and IntelliSense. | Requires defining a POCO class for each configuration section. |
+| Integrates with .NET configuration pipeline (JSON, env vars, secrets). | Understanding IOptions vs IOptionsSnapshot vs IOptionsMonitor takes time. |
+| Supports runtime reload without application restart. | Deeply nested configurations can be awkward to bind. |
+| Named options enable per-tenant configuration. | Validation only runs at startup by default; invalid runtime changes are not caught. |
+| Testable: pass options directly in unit tests with `Options.Create(new T())`. | Options classes proliferate in large applications. |
 
 ## Common Interview Questions
-1. **IOptions vs IOptionsSnapshot vs IOptionsMonitor?** IOptions: singleton, read once. IOptionsSnapshot: scoped, re-reads per request. IOptionsMonitor: singleton with OnChange callback.
-2. **How do you validate options at startup?** Use `ValidateDataAnnotations()` and `ValidateOnStart()` in the service registration.
-3. **What are named options?** Named options allow multiple configurations of the same type, resolved by name (e.g., per-tenant settings).
+1. What is the difference between `IOptions<T>`, `IOptionsSnapshot<T>`, and `IOptionsMonitor<T>`, and when do you use each?
+2. How do you validate configuration at startup to fail fast on misconfiguration?
+3. How do named options work for multi-tenant configuration in ASP.NET Core?
 
 ## Comparison with Similar Patterns
-| Pattern | Difference |
-|---------|-----------|
-| **Configuration Provider** | Provider loads raw config; Options binds it to types |
-| **Service Locator** | Service Locator resolves services; Options resolves configuration |
-| **Feature Toggle** | Feature flags are one use case of the Options pattern |
 
-## Mermaid Diagrams
+| Aspect | IOptions&lt;T&gt; | IOptionsSnapshot&lt;T&gt; | IOptionsMonitor&lt;T&gt; |
+|---|---|---|---|
+| Lifetime | Singleton | Scoped | Singleton |
+| Reload | No | Yes (per request) | Yes (real-time callback) |
+| Named options | No | Yes | Yes |
+| Best for | Settings that never change at runtime. | Per-request settings in web apps. | Long-lived services that need live updates. |
+| Performance | Fastest (cached once). | Slight overhead (rebuilt per scope). | Callback overhead on change. |
+| Registration | `services.Configure<T>()` | Same | Same |
 
-### Class Diagram
+## Mermaid Class Diagram
 ```mermaid
 classDiagram
-    class SmtpOptions {
-        +string Host
-        +int Port
-        +string SenderEmail
-        +bool UseSsl
-        +TimeSpan Timeout
-    }
-    class FeatureFlags {
-        +bool EnableNewCheckout
-        +bool EnableDarkMode
-        +bool MaintenanceMode
-        +IsUserInBeta(string) bool
-    }
     class TenantOptions {
-        +string TenantName
-        +string ConnectionString
-        +int MaxUsersAllowed
-        +bool IsPremium
-    }
-    class EmailService {
-        -SmtpOptions _config
-    }
-    class FeatureFlagService {
-        -IOptionsMonitor _monitor
+        +SectionName = "Tenants"$
+        +TenantName : string
+        +ConnectionString : string
+        +Theme : string
+        +MaxUsersAllowed : int
+        +IsPremium : bool
+        +Storage : StorageQuota
     }
 
-    EmailService --> SmtpOptions : IOptions
-    FeatureFlagService --> FeatureFlags : IOptionsMonitor
+    class StorageQuota {
+        +MaxStorageMb : long
+        +UsedStorageMb : long
+        +UsagePercentage : double
+        +IsNearLimit : bool
+    }
+
+    class SmtpOptions {
+        +Host : string
+        +Port : int
+        +Username : string
+        +Password : string
+        +UseTls : bool
+    }
+
+    class FeatureFlags {
+        +EnableNewDashboard : bool
+        +EnableBetaFeatures : bool
+        +MaxUploadSizeMb : int
+    }
+
+    class IOptions~T~ {
+        <<interface>>
+        +Value : T
+    }
+
+    class IOptionsSnapshot~T~ {
+        <<interface>>
+        +Value : T
+        +Get(name) T
+    }
+
+    class IOptionsMonitor~T~ {
+        <<interface>>
+        +CurrentValue : T
+        +Get(name) T
+        +OnChange(listener) IDisposable
+    }
+
+    TenantOptions --> StorageQuota : contains
+    IOptions~T~ ..> TenantOptions : wraps
+    IOptionsSnapshot~T~ ..> TenantOptions : wraps
+    IOptionsMonitor~T~ ..> TenantOptions : wraps
 ```
 
-### Flow Diagram
+## Mermaid Sequence Diagram
 ```mermaid
-flowchart TD
-    A[appsettings.json] -->|Bind| B[SmtpOptions]
-    A -->|Bind| C[FeatureFlags]
-    A -->|Bind per name| D[TenantOptions]
-    B -->|IOptions| E[EmailService - Singleton]
-    C -->|IOptionsMonitor| F[FeatureFlagService - OnChange]
-    D -->|IOptionsSnapshot| G[TenantService - Per Request]
+sequenceDiagram
+    participant Startup as Program.cs
+    participant DI as ServiceCollection
+    participant Config as IConfiguration
+    participant Service as TenantService
+    participant Opts as IOptionsSnapshot~TenantOptions~
+
+    Startup->>Config: GetSection("Tenants:TenantA")
+    Startup->>DI: Configure~TenantOptions~("TenantA", section)
+    Startup->>Config: GetSection("Tenants:TenantB")
+    Startup->>DI: Configure~TenantOptions~("TenantB", section)
+
+    Note over Service: Per-request resolution
+    Service->>Opts: Get("TenantA")
+    Opts-->>Service: TenantOptions(conn="...", theme="dark", premium=true)
+
+    Service->>Opts: Get("TenantB")
+    Opts-->>Service: TenantOptions(conn="...", theme="light", premium=false)
+
+    Note over Config: appsettings.json changes on disk
+    Config->>Opts: Reload triggered
+    Service->>Opts: Get("TenantA")
+    Opts-->>Service: TenantOptions (updated values)
 ```
 
 ## Similar Patterns to Review Next
-- Policy Pattern (configuration-driven resilience)
-- Null Object (default behavior when config is missing)
-- Repository (tenant-scoped data access)
+- **Strategy** -- Options selects configuration data; Strategy selects behavior. Sometimes combined (use options to pick a strategy).
+- **Builder** -- fluent configuration APIs (like `OptionsBuilder<T>`) use the Builder pattern internally.
+- **Abstract Factory** -- can use Options to parameterize factory behavior per tenant.
+- **Feature Flags** -- a specialized form of Options focused on boolean toggles with gradual rollout capabilities.

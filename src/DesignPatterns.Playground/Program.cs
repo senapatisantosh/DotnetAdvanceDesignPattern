@@ -1003,7 +1003,7 @@ Task DemoObserver()
 
     var alertService = new AlertService();
     var dashboard = new DashboardUpdater();
-    var auditLogger = new Behavioral.Observer.Observers.AuditLogger();
+    var auditLogger = new DesignPatterns.Behavioral.Observer.Observers.AuditLogger();
 
     monitor.Subscribe(alertService);
     monitor.Subscribe(dashboard);
