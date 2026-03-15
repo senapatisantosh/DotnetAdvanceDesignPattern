@@ -1,74 +1,82 @@
 # Result Pattern
 
 ## Memory Hook (one-liner)
-"Return a box that holds either the value or the error — no exceptions for expected failures."
+"A return type that says 'here is the answer OR here is why it failed' — no exceptions needed for expected failures."
 
 ## Problem
-Using exceptions for expected business failures (validation errors, not-found, conflicts) is expensive, hard to track, and mixes control flow with error handling. Callers forget to catch, and the type system doesn't help.
+Using exceptions for expected business failures (validation errors, not found, duplicates) is expensive, hard to compose, and mixes control flow with error handling. Returning null or magic values loses error context.
 
 ## Naive Approach
 ```csharp
-// Exceptions for business logic
+// Exceptions for flow control — expensive and unclear
 public User Register(string email, string password)
 {
-    if (string.IsNullOrEmpty(email)) throw new ValidationException("Email required");
-    if (_repo.Exists(email)) throw new ConflictException("Email taken");
-    // caller must remember to catch each exception type...
+    if (!IsValidEmail(email))
+        throw new ValidationException("Invalid email");  // caller must catch
+    if (EmailExists(email))
+        throw new ConflictException("Email taken");       // different exception type
+    return CreateUser(email, password);
 }
 ```
 
 ## Pattern Solution
-Return a `Result<T>` that is either Success (with value) or Failure (with a structured Error). Chain operations with `Map`, `Bind`, and `Match` — functional style.
+Return `Result<T>` that carries either a value (success) or a structured `Error` (failure). Compose operations with `Map`, `Bind`, and `Match` — no try/catch needed for business-level failures.
+
+```csharp
+public Result<UserAccount> Register(string email, string password) =>
+    ValidateEmail(email)
+        .Bind(_ => ValidatePassword(password))
+        .Bind(_ => CheckDuplicate(email))
+        .Bind(_ => CreateAccount(email, password));
+```
 
 ## When To Use
-- Validation flows with multiple potential failure reasons
-- API layers that must return structured error responses
-- Operations where failure is expected, not exceptional
-- Chaining multiple fallible steps (registration, payment, booking)
-- When you want the compiler to force error handling
+- Business operations that have expected, well-known failure modes
+- API endpoints where you need structured error responses
+- Composing validation chains without nested if-else
+- Domain services where exceptions should be reserved for unexpected failures
+- Functional-style pipelines with Map/Bind/Match
 
 ## When NOT To Use
-- Truly exceptional situations (out of memory, network failure)
-- Simple operations that always succeed
-- Libraries where callers expect exceptions (following .NET conventions)
-- Performance-critical inner loops (struct-based results exist for this)
-- Teams unfamiliar with functional programming concepts
+- Truly exceptional conditions (out of memory, network down) — use exceptions
+- Simple CRUD with no business validation
+- Team is unfamiliar with functional concepts and prefers try/catch
+- Performance overhead of Result objects matters (rare)
+- Framework already provides a result pattern (e.g., FluentValidation + MediatR)
 
 ## Participants
 | Role | Class | Purpose |
 |------|-------|---------|
-| Base | `Result` | Non-generic success/failure without a value |
-| Generic | `Result<T>` | Carries a value on success |
-| Error | `Error` | Structured error with code, message, and type |
+| Result | `Result`, `Result<T>` | Wraps success/failure |
+| Error | `Error` | Structured error with code, message, type |
 | Extensions | `ResultExtensions` | Map, Bind, Match, Tap, Combine |
-| Example | `UserRegistrationService` | Real-world usage demonstration |
+| Example | `UserRegistrationService` | Realistic usage demonstration |
 
 ## Variants
-- **OneOf / Discriminated Union** — uses `OneOf<Success, Error>` library
-- **FluentResults** — popular NuGet package with similar API
+- **Railway-oriented programming** — two-track model (success/failure)
+- **OneOf / Discriminated union** — `OneOf<Success, NotFound, ValidationError>`
+- **FluentResults** — popular library with similar API
 - **ErrorOr** — lightweight alternative by Amichai Mantinband
-- **Struct-based Result** — avoids heap allocation for performance
-- **Result with multiple errors** — `Result<T, IReadOnlyList<Error>>`
 
 ## Tradeoffs Table
 | Advantage | Disadvantage |
 |-----------|-------------|
-| Compiler enforces error handling | More verbose than try/catch for simple cases |
-| No exception overhead for expected failures | Unfamiliar to devs from OOP-only backgrounds |
-| Chainable with Map/Bind | Async chains need extra extension methods |
-| Structured errors for API responses | Exceptions still needed for unexpected failures |
+| No exceptions for expected failures | New abstraction to learn |
+| Composable with Map/Bind/Match | Result objects allocate on heap |
+| Structured errors with codes | Can be verbose without extension methods |
+| Self-documenting method signatures | Team must adopt consistently |
 
 ## Common Interview Questions
-1. **When should you use Result vs exceptions?** Use Result for expected business failures; exceptions for unexpected infrastructure failures.
-2. **What is the Bind operation?** Bind (flatMap) chains two operations that each return a Result, short-circuiting on the first failure.
-3. **How does Result compare to nullable?** Nullable only says "missing"; Result also tells you why.
+1. **When should you use Result vs exceptions?** Result for expected business failures; exceptions for unexpected infrastructure failures.
+2. **What is Bind/FlatMap?** Chains two result-producing operations — if the first fails, the second is skipped.
+3. **How does Result pattern relate to monads?** `Result<T>` is the Either monad from functional programming (Right = success, Left = error).
 
 ## Comparison with Similar Patterns
 | Pattern | Difference |
 |---------|-----------|
-| **Option/Maybe** | Option represents presence/absence; Result adds error information |
-| **Either** | Either<L,R> is the generic form; Result is a specialized Either<Error,T> |
-| **Exception handling** | Exceptions use stack unwinding; Result uses normal control flow |
+| **Exceptions** | Exceptions unwind the stack; Result returns normally |
+| **Null Object** | Null Object provides default behavior; Result provides error info |
+| **Option/Maybe** | Option handles absence; Result handles absence with a reason |
 
 ## Mermaid Diagrams
 
@@ -93,13 +101,14 @@ classDiagram
         +ErrorType Type
         +Validation() Error
         +NotFound() Error
+        +Conflict() Error
     }
     class ResultExtensions {
-        +Map()$
-        +Bind()$
-        +Match()$
-        +Tap()$
-        +Combine()$
+        +Map()
+        +Bind()
+        +Match()
+        +Tap()
+        +Combine()
     }
 
     Result <|-- Result~T~
@@ -107,20 +116,25 @@ classDiagram
     ResultExtensions ..> Result~T~
 ```
 
-### Flow Diagram
+### Sequence Diagram
 ```mermaid
-flowchart TD
-    A[ValidateEmail] -->|Success| B[ValidatePassword]
-    A -->|Failure| F[Return Error]
-    B -->|Success| C[CheckDuplicate]
-    B -->|Failure| F
-    C -->|Success| D[CreateAccount]
-    C -->|Failure| F
-    D -->|Success| E[Return UserAccount]
-    D -->|Failure| F
+sequenceDiagram
+    participant C as Caller
+    participant S as RegistrationService
+
+    C->>S: Register("user@test.com", "Pass1234", "John")
+    S->>S: ValidateEmail() -> Success
+    S->>S: ValidatePassword() -> Success
+    S->>S: CheckDuplicate() -> Success
+    S->>S: CreateAccount() -> Success
+    S-->>C: Result<UserAccount>.Success(account)
+
+    C->>S: Register("bad", "short", "Jane")
+    S->>S: ValidateEmail() -> Failure
+    S-->>C: Result<UserAccount>.Failure(Email.Invalid)
 ```
 
 ## Similar Patterns to Review Next
-- Specification
-- Value Object
-- Domain Events
+- Value Object (both enforce domain invariants)
+- Specification (composable business rules)
+- CQRS (command handlers often return Result)
