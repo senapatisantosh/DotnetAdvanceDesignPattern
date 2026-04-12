@@ -1,3 +1,17 @@
+---
+title: "Enterprise Patterns Summary"
+contentKey: "enterprise-patterns-summary"
+section: "overview"
+accessLevel: "free"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "enterprise", "cqrs", "repository", "saga", "domain-events"]
+order: 4
+sourceType: "same_repo"
+sourcePath: "docs/free/overview/04-enterprise-patterns-summary.md"
+routePath: "/project/dotnet-advanced-design-patterns/preview/enterprise-patterns-summary"
+isPublished: true
+---
+
 # Enterprise Patterns Summary
 
 > A comprehensive reference of all enterprise and design patterns covered in this repository, with summary tables and head-to-head comparisons.
