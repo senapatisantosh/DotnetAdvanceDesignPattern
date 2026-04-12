@@ -1,3 +1,18 @@
+---
+title: "Comparison Maps"
+contentKey: "comparison-maps"
+section: "cheatsheets"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "comparison", "cheatsheet"]
+order: 2
+sourceType: "same_repo"
+sourcePath: "docs/premium/cheatsheets/02-comparison-maps.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/comparison-maps"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/cheatsheets/02-comparison-maps.md"
+isPublished: true
+---
+
 # Comparison Maps
 
 > Side-by-side comparisons of commonly confused design patterns, with Mermaid diagrams, comparison tables, and clear guidance on when to use which.

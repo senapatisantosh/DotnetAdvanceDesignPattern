@@ -1,3 +1,18 @@
+---
+title: "Decision Matrix: Problems to Patterns"
+contentKey: "decision-matrix"
+section: "cheatsheets"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "decision-matrix", "pattern-selection"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "docs/premium/cheatsheets/01-decision-matrix.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/decision-matrix"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/cheatsheets/01-decision-matrix.md"
+isPublished: true
+---
+
 # Decision Matrix: Problems to Patterns
 
 > A systematic mapping from problems and scenarios to recommended design patterns. Use this when you know the problem but need to choose the right pattern.

@@ -1,3 +1,18 @@
+---
+title: "Factory Method Deep Dive"
+contentKey: "factory-method-deep-dive"
+section: "deep-dive-creational"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "factory-method", "creational", "deep-dive"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "docs/premium/deep-dive/creational/01-factory-method-deep-dive.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/factory-method-deep-dive"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/deep-dive/creational/01-factory-method-deep-dive.md"
+isPublished: true
+---
+
 # Deep Dive: Factory Method vs Abstract Factory vs Simple Factory
 
 Understanding the factory family of patterns is one of the most common interview topics and a frequent source of confusion in production codebases. This guide clarifies when each variant applies and the architectural trade-offs involved.

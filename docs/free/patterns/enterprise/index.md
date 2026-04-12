@@ -1,3 +1,17 @@
+---
+title: "Enterprise Patterns Index"
+contentKey: "patterns-enterprise-index"
+section: "patterns-index"
+accessLevel: "free"
+contentType: "index"
+tags: ["dotnet", "design-patterns", "enterprise"]
+order: 4
+sourceType: "same_repo"
+sourcePath: "docs/free/patterns/enterprise/index.md"
+routePath: "/project/dotnet-advanced-design-patterns/preview/patterns-enterprise-index"
+isPublished: true
+---
+
 # Enterprise Patterns
 
 Enterprise patterns address the challenges of building production-grade .NET applications: data access abstraction, domain modeling, event-driven architecture, distributed systems coordination, and application configuration. These patterns are commonly found in real-world systems and are frequent topics in senior developer interviews.

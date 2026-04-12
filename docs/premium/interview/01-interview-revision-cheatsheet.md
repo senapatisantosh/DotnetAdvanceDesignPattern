@@ -1,3 +1,18 @@
+---
+title: "Interview Revision Cheat Sheet"
+contentKey: "interview-revision-cheatsheet"
+section: "interview"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "interview-prep", "cheatsheet"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "docs/premium/interview/01-interview-revision-cheatsheet.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/interview-revision-cheatsheet"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/interview/01-interview-revision-cheatsheet.md"
+isPublished: true
+---
+
 # Interview Revision Cheat Sheet
 
 > A master quick-reference guide covering all 35+ patterns in this repository. Designed for rapid review before interviews, code reviews, or architecture discussions.

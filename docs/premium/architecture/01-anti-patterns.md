@@ -1,3 +1,18 @@
+---
+title: "Anti-Patterns: Common Mistakes and How to Avoid Them"
+contentKey: "anti-patterns"
+section: "architecture"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "anti-patterns", "architecture", "clean-code"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "docs/premium/architecture/01-anti-patterns.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/anti-patterns"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/architecture/01-anti-patterns.md"
+isPublished: true
+---
+
 # Anti-Patterns: Common Mistakes and How to Avoid Them
 
 Knowing when **not** to use a pattern is just as important as knowing when to use one. This document covers the most common anti-patterns that arise from misapplying design patterns in .NET applications.
