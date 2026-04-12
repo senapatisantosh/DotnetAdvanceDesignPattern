@@ -1,3 +1,18 @@
+---
+title: "Building Resilient API Clients with the Decorator Pattern"
+contentKey: "blog-resilient-apis-decorator"
+section: "blog-premium"
+accessLevel: "premium"
+contentType: "blog"
+tags: ["dotnet", "design-patterns", "decorator", "api-client", "resilience", "blog"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "blog/premium/01-building-resilient-apis-with-decorator-pattern.md"
+routePath: "/project/dotnet-advanced-design-patterns/blog/building-resilient-apis-decorator"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/blog/01-building-resilient-apis-with-decorator-pattern.md"
+isPublished: true
+---
+
 # Building Resilient API Clients with the Decorator Pattern
 
 Every production application talks to external APIs. Payment gateways, shipping providers, notification services, third-party data feeds -- they all share the same reality: networks are unreliable, services go down, and latency varies wildly. The Decorator pattern provides an elegant way to add retry logic, caching, and logging to any API client without touching the original implementation.

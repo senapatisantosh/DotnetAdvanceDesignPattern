@@ -1,3 +1,18 @@
+---
+title: "Strategy vs State Deep Dive"
+contentKey: "strategy-vs-state-deep-dive"
+section: "deep-dive-behavioral"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "strategy", "state", "behavioral", "deep-dive"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "docs/premium/deep-dive/behavioral/01-strategy-vs-state-deep-dive.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/strategy-vs-state-deep-dive"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/deep-dive/behavioral/01-strategy-vs-state-deep-dive.md"
+isPublished: true
+---
+
 # Deep Dive: Strategy vs State -- The Most Commonly Confused Pair
 
 Strategy and State are structurally nearly identical -- both use an interface, concrete implementations, and a context that delegates to the current implementation. The difference is entirely in **who decides** and **when it changes**. This guide resolves the confusion with production scenarios.

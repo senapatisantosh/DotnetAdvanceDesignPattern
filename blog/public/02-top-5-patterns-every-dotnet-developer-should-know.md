@@ -1,3 +1,17 @@
+---
+title: "Top 5 Patterns Every .NET Developer Should Know"
+contentKey: "blog-top-5-patterns"
+section: "blog-public"
+accessLevel: "free"
+contentType: "blog"
+tags: ["dotnet", "design-patterns", "csharp", "strategy", "decorator", "factory-method", "observer", "result-pattern", "blog"]
+order: 2
+sourceType: "same_repo"
+sourcePath: "blog/public/02-top-5-patterns-every-dotnet-developer-should-know.md"
+routePath: "/project/dotnet-advanced-design-patterns/blog/top-5-patterns-every-dotnet-developer"
+isPublished: true
+---
+
 # Top 5 Patterns Every .NET Developer Should Know
 
 After years of building production .NET systems, five patterns consistently prove their value across domains -- from e-commerce platforms to healthcare monitoring systems. These are not theoretical exercises. Each one solves a concrete problem you will encounter repeatedly.

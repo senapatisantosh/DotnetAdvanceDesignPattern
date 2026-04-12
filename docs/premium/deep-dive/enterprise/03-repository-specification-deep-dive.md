@@ -1,3 +1,18 @@
+---
+title: "Repository and Specification Deep Dive"
+contentKey: "repository-specification-deep-dive"
+section: "deep-dive-enterprise"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "repository", "specification", "enterprise", "deep-dive"]
+order: 3
+sourceType: "same_repo"
+sourcePath: "docs/premium/deep-dive/enterprise/03-repository-specification-deep-dive.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/repository-specification-deep-dive"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/deep-dive/enterprise/03-repository-specification-deep-dive.md"
+isPublished: true
+---
+
 # Deep Dive: Repository + Specification -- Data Access Patterns That Scale
 
 The Repository pattern and the Specification pattern are among the most debated topics in the .NET ecosystem. "Should I wrap EF Core?" is a perennial question on every .NET forum. This guide cuts through the noise with clear guidelines on when each pattern earns its keep and when it creates unnecessary indirection.

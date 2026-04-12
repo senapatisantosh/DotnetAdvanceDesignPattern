@@ -1,3 +1,18 @@
+---
+title: "Command vs Chain of Responsibility vs Mediator Deep Dive"
+contentKey: "command-cor-mediator-deep-dive"
+section: "deep-dive-behavioral"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "command", "chain-of-responsibility", "mediator", "behavioral", "deep-dive"]
+order: 2
+sourceType: "same_repo"
+sourcePath: "docs/premium/deep-dive/behavioral/02-command-cor-mediator-deep-dive.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/command-cor-mediator-deep-dive"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/deep-dive/behavioral/02-command-cor-mediator-deep-dive.md"
+isPublished: true
+---
+
 # Deep Dive: Command vs Chain of Responsibility vs Mediator -- Request Handling Patterns Compared
 
 These three behavioral patterns all deal with requests and their handlers, but they solve different problems. Command encapsulates WHAT to do. Chain of Responsibility decides WHO handles it. Mediator coordinates HOW multiple components interact.

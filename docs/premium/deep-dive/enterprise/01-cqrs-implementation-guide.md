@@ -1,3 +1,18 @@
+---
+title: "CQRS Implementation Guide"
+contentKey: "cqrs-implementation-guide"
+section: "deep-dive-enterprise"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "cqrs", "enterprise", "deep-dive"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "docs/premium/deep-dive/enterprise/01-cqrs-implementation-guide.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/cqrs-implementation-guide"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/deep-dive/enterprise/01-cqrs-implementation-guide.md"
+isPublished: true
+---
+
 # Deep Dive: CQRS Implementation Guide for Production .NET
 
 CQRS (Command Query Responsibility Segregation) is one of the most discussed and most misapplied enterprise patterns. This guide covers practical implementation in .NET, from simple separation to full CQRS with separate read stores.

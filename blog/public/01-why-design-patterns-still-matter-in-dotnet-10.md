@@ -1,3 +1,17 @@
+---
+title: "Why Design Patterns Still Matter in .NET 10"
+contentKey: "blog-why-patterns-still-matter"
+section: "blog-public"
+accessLevel: "free"
+contentType: "blog"
+tags: ["dotnet", "design-patterns", "csharp", "software-architecture", "blog"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "blog/public/01-why-design-patterns-still-matter-in-dotnet-10.md"
+routePath: "/project/dotnet-advanced-design-patterns/blog/why-design-patterns-still-matter"
+isPublished: true
+---
+
 # Why Design Patterns Still Matter in .NET 10
 
 "Design patterns are outdated." You hear this every year, and every year it is wrong. Patterns are not rigid templates from a 1994 textbook -- they are a shared vocabulary for solving recurring problems. What changes is how we implement them. Modern C# makes patterns more concise, more type-safe, and easier to compose than ever before.

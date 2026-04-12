@@ -1,3 +1,18 @@
+---
+title: "Observer vs Domain Events Deep Dive"
+contentKey: "observer-domain-events-deep-dive"
+section: "deep-dive-behavioral"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "observer", "domain-events", "behavioral", "deep-dive"]
+order: 3
+sourceType: "same_repo"
+sourcePath: "docs/premium/deep-dive/behavioral/03-observer-domain-events-deep-dive.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/observer-domain-events-deep-dive"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/deep-dive/behavioral/03-observer-domain-events-deep-dive.md"
+isPublished: true
+---
+
 # Deep Dive: Observer vs Domain Events vs Event Sourcing
 
 These three patterns all involve events, but at different levels of abstraction, persistence, and scope. Understanding the evolution from Observer to Domain Events to Event Sourcing is essential for designing production event-driven architectures.

@@ -1,3 +1,18 @@
+---
+title: "Implementing the Saga Pattern for .NET Microservices"
+contentKey: "blog-saga-microservices"
+section: "blog-premium"
+accessLevel: "premium"
+contentType: "blog"
+tags: ["dotnet", "design-patterns", "saga", "microservices", "distributed-systems", "blog"]
+order: 2
+sourceType: "same_repo"
+sourcePath: "blog/premium/02-implementing-saga-pattern-in-microservices.md"
+routePath: "/project/dotnet-advanced-design-patterns/blog/implementing-saga-microservices"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/blog/02-implementing-saga-pattern-in-microservices.md"
+isPublished: true
+---
+
 # Implementing the Saga Pattern for .NET Microservices
 
 When you break a monolith into microservices, you lose the one thing that made data consistency easy: database transactions. An order placement that once lived inside a single `BEGIN TRANSACTION ... COMMIT` now spans inventory, payment, and shipping services -- each with its own database. The Saga pattern provides a disciplined way to maintain consistency without distributed transactions.

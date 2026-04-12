@@ -1,3 +1,18 @@
+---
+title: "Saga and Outbox Deep Dive"
+contentKey: "saga-outbox-deep-dive"
+section: "deep-dive-enterprise"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "saga", "outbox", "enterprise", "deep-dive"]
+order: 2
+sourceType: "same_repo"
+sourcePath: "docs/premium/deep-dive/enterprise/02-saga-outbox-deep-dive.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/saga-outbox-deep-dive"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/deep-dive/enterprise/02-saga-outbox-deep-dive.md"
+isPublished: true
+---
+
 # Deep Dive: Saga + Outbox -- Reliable Distributed Workflows in .NET
 
 Microservices break the single-database transaction boundary that monoliths take for granted. When an order placement must reserve inventory, charge payment, and arrange shipping across separate services, there is no distributed `BEGIN TRANSACTION`. The Saga pattern provides application-level consistency, and the Outbox pattern guarantees that events reach their destinations even when the message broker is temporarily down.
