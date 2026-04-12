@@ -1,3 +1,17 @@
+---
+title: "Behavioral Patterns Index"
+contentKey: "patterns-behavioral-index"
+section: "patterns-index"
+accessLevel: "free"
+contentType: "index"
+tags: ["dotnet", "design-patterns", "behavioral"]
+order: 3
+sourceType: "same_repo"
+sourcePath: "docs/free/patterns/behavioral/index.md"
+routePath: "/project/dotnet-advanced-design-patterns/preview/patterns-behavioral-index"
+isPublished: true
+---
+
 # Behavioral Patterns
 
 Behavioral patterns are concerned with algorithms and the assignment of responsibilities between objects. They describe not just objects and classes, but the patterns of communication between them, shifting focus from structure to interaction.

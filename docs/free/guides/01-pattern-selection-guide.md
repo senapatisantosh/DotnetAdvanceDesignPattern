@@ -1,3 +1,17 @@
+---
+title: "Pattern Selection Guide"
+contentKey: "pattern-selection-guide"
+section: "guides"
+accessLevel: "free"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "decision-tree", "pattern-selection"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "docs/free/guides/01-pattern-selection-guide.md"
+routePath: "/project/dotnet-advanced-design-patterns/preview/pattern-selection-guide"
+isPublished: true
+---
+
 # Pattern Selection Guide
 
 This guide helps you choose the right design pattern based on the problem you are facing. Use the decision trees, flowcharts, and tables below to navigate from **problem** to **pattern**.

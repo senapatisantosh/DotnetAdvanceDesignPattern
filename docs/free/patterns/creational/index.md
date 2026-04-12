@@ -1,3 +1,17 @@
+---
+title: "Creational Patterns Index"
+contentKey: "patterns-creational-index"
+section: "patterns-index"
+accessLevel: "free"
+contentType: "index"
+tags: ["dotnet", "design-patterns", "creational"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "docs/free/patterns/creational/index.md"
+routePath: "/project/dotnet-advanced-design-patterns/preview/patterns-creational-index"
+isPublished: true
+---
+
 # Creational Patterns
 
 Creational patterns deal with object creation mechanisms, providing flexible ways to create objects while hiding the creation logic from the consuming code. They help make a system independent of how its objects are created, composed, and represented.

@@ -1,3 +1,17 @@
+---
+title: "Creational Patterns Summary"
+contentKey: "creational-patterns-summary"
+section: "overview"
+accessLevel: "free"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "creational", "factory-method", "abstract-factory", "builder", "prototype", "singleton"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "docs/free/overview/01-creational-patterns-summary.md"
+routePath: "/project/dotnet-advanced-design-patterns/preview/creational-patterns-summary"
+isPublished: true
+---
+
 # Creational Patterns Summary
 
 Creational patterns abstract the instantiation process, making the system independent of how objects are created. This repository demonstrates all five GoF creational patterns with production-style .NET 10 examples.

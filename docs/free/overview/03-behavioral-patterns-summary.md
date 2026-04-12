@@ -1,3 +1,17 @@
+---
+title: "Behavioral Patterns Summary"
+contentKey: "behavioral-patterns-summary"
+section: "overview"
+accessLevel: "free"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "behavioral", "strategy", "observer", "command", "state"]
+order: 3
+sourceType: "same_repo"
+sourcePath: "docs/free/overview/03-behavioral-patterns-summary.md"
+routePath: "/project/dotnet-advanced-design-patterns/preview/behavioral-patterns-summary"
+isPublished: true
+---
+
 # Behavioral Patterns Summary
 
 Behavioral patterns focus on **algorithms**, **responsibility assignment**, and **communication** between objects. They describe how objects interact and distribute work. This repository demonstrates all eleven GoF behavioral patterns with production-style .NET 10 examples.

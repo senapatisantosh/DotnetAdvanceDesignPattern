@@ -1,3 +1,17 @@
+---
+title: "Structural Patterns Summary"
+contentKey: "structural-patterns-summary"
+section: "overview"
+accessLevel: "free"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "structural", "adapter", "bridge", "composite", "decorator", "facade", "flyweight", "proxy"]
+order: 2
+sourceType: "same_repo"
+sourcePath: "docs/free/overview/02-structural-patterns-summary.md"
+routePath: "/project/dotnet-advanced-design-patterns/preview/structural-patterns-summary"
+isPublished: true
+---
+
 # Structural Patterns Summary
 
 Structural patterns deal with object and class **composition** — how classes and objects are assembled into larger structures while remaining flexible and efficient. This repository demonstrates all seven GoF structural patterns with production-style .NET 10 examples.

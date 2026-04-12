@@ -1,3 +1,17 @@
+---
+title: "Structural Patterns Index"
+contentKey: "patterns-structural-index"
+section: "patterns-index"
+accessLevel: "free"
+contentType: "index"
+tags: ["dotnet", "design-patterns", "structural"]
+order: 2
+sourceType: "same_repo"
+sourcePath: "docs/free/patterns/structural/index.md"
+routePath: "/project/dotnet-advanced-design-patterns/preview/patterns-structural-index"
+isPublished: true
+---
+
 # Structural Patterns
 
 Structural patterns are concerned with how classes and objects are composed to form larger structures. They use inheritance and composition to create flexible, efficient structures that keep the system manageable as it grows.
