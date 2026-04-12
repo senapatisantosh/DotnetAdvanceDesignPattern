@@ -1,130 +1,174 @@
-# Building Resilient APIs with the Decorator Pattern
+# Building Resilient API Clients with the Decorator Pattern
 
-Production APIs face failures that never appear in development: network timeouts, rate limiting, transient database errors, downstream service outages. The Decorator pattern provides a clean, composable approach to handling all of these without polluting your business logic.
+Every production application talks to external APIs. Payment gateways, shipping providers, notification services, third-party data feeds -- they all share the same reality: networks are unreliable, services go down, and latency varies wildly. The Decorator pattern provides an elegant way to add retry logic, caching, and logging to any API client without touching the original implementation.
 
 ## The Problem: Cross-Cutting Concerns Everywhere
 
-Consider a product catalog service that calls an external inventory API. In development, it is a simple HTTP call. In production, you need:
-
-- **Retry** for transient failures (503, timeout)
-- **Circuit breaker** to stop calling a dead service
-- **Caching** to reduce load and improve latency
-- **Logging** for debugging and monitoring
-- **Metrics** for dashboards and alerting
-- **Timeout** to prevent hanging requests
-
-Without Decorator, these concerns invade the business logic. With Decorator, each concern is an independent layer.
-
-## Building the Decorator Chain
-
-### Step 1: Define the Interface
+You start with a clean API client:
 
 ```csharp
-public interface IInventoryClient
+public interface IApiClient
 {
-    Task<StockLevel> GetStockAsync(string sku, CancellationToken ct = default);
+    Task<ApiResponse> GetAsync(string url);
+    Task<ApiResponse> PostAsync(string url, string payload);
 }
 ```
 
-### Step 2: Implement the Real Client
+Then production requirements arrive: "Add logging." "Add retry with exponential backoff." "Cache GET responses." "Add circuit breaking." Each requirement is orthogonal to the actual HTTP call. Embedding them all into the base client creates a tangled mess that violates the Single Responsibility Principle and makes testing painful.
+
+## Decorators: One Concern Per Layer
+
+Each decorator implements the same `IApiClient` interface and wraps an inner client. It adds exactly one behavior and delegates everything else.
+
+**Logging** captures timing and status for every call:
 
 ```csharp
-public class HttpInventoryClient(HttpClient http) : IInventoryClient
+public sealed class LoggingApiClientDecorator(IApiClient inner) : IApiClient
 {
-    public async Task<StockLevel> GetStockAsync(string sku, CancellationToken ct)
+    public async Task<ApiResponse> GetAsync(string url)
     {
-        var response = await http.GetFromJsonAsync<StockLevel>($"/api/stock/{sku}", ct);
-        return response ?? throw new InventoryNotFoundException(sku);
+        Log($"GET {url} -- Starting request");
+        var response = await inner.GetAsync(url);
+        Log($"GET {url} -- Completed: {response.StatusCode} in {response.Duration.TotalMilliseconds:F1}ms");
+        return response;
     }
 }
 ```
 
-### Step 3: Stack Decorators
+**Caching** short-circuits GET requests when a valid cached response exists:
 
 ```csharp
-public class CachingInventoryDecorator(IInventoryClient inner, IMemoryCache cache) : IInventoryClient
+public sealed class CachingApiClientDecorator(IApiClient inner, TimeSpan? ttl = null) : IApiClient
 {
-    public async Task<StockLevel> GetStockAsync(string sku, CancellationToken ct)
-    {
-        return await cache.GetOrCreateAsync($"stock:{sku}", async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2);
-            return await inner.GetStockAsync(sku, ct);
-        }) ?? await inner.GetStockAsync(sku, ct);
-    }
-}
+    private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
 
-public class LoggingInventoryDecorator(IInventoryClient inner, ILogger<LoggingInventoryDecorator> logger) : IInventoryClient
-{
-    public async Task<StockLevel> GetStockAsync(string sku, CancellationToken ct)
+    public async Task<ApiResponse> GetAsync(string url)
     {
-        logger.LogInformation("Fetching stock for {Sku}", sku);
-        var sw = Stopwatch.StartNew();
-        try
+        if (_cache.TryGetValue(url, out var cached) && !cached.IsExpired)
+            return cached.Response with { FromCache = true };
+
+        var response = await inner.GetAsync(url);
+        if (response.IsSuccess)
+            _cache[url] = new CacheEntry(response, DateTime.UtcNow.Add(_ttl));
+        return response;
+    }
+
+    // POST requests are never cached -- always pass through
+    public Task<ApiResponse> PostAsync(string url, string payload) =>
+        inner.PostAsync(url, payload);
+}
+```
+
+**Retry** wraps failed calls with exponential backoff:
+
+```csharp
+public sealed class RetryApiClientDecorator(IApiClient inner, int maxRetries = 3) : IApiClient
+{
+    public async Task<ApiResponse> GetAsync(string url) =>
+        await ExecuteWithRetryAsync(() => inner.GetAsync(url));
+
+    private async Task<ApiResponse> ExecuteWithRetryAsync(Func<Task<ApiResponse>> action)
+    {
+        for (var attempt = 0; attempt <= maxRetries; attempt++)
         {
-            var result = await inner.GetStockAsync(sku, ct);
-            logger.LogInformation("Stock for {Sku}: {Quantity} in {Ms}ms", sku, result.Available, sw.ElapsedMilliseconds);
-            return result;
+            var response = await action();
+            if (response.IsSuccess || !IsRetriableStatusCode(response.StatusCode))
+                return response;
+
+            await Task.Delay(TimeSpan.FromMilliseconds(100) * Math.Pow(2, attempt));
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to fetch stock for {Sku} after {Ms}ms", sku, sw.ElapsedMilliseconds);
-            throw;
-        }
+        // exhausted retries...
     }
 }
 ```
 
-### Step 4: Wire It Up in DI
+## Stacking Order Matters
+
+The order you compose decorators determines the behavior:
 
 ```csharp
-services.AddScoped<IInventoryClient>(sp =>
-    new LoggingInventoryDecorator(
-        new CachingInventoryDecorator(
-            new HttpInventoryClient(sp.GetRequiredService<HttpClient>()),
-            sp.GetRequiredService<IMemoryCache>()),
-        sp.GetRequiredService<ILogger<LoggingInventoryDecorator>>()));
+IApiClient client = new BaseApiClient();
+client = new RetryApiClientDecorator(client, maxRetries: 3);
+client = new CachingApiClientDecorator(client, TimeSpan.FromMinutes(5));
+client = new LoggingApiClientDecorator(client);
 ```
 
-Or with Scrutor: `services.Decorate<IInventoryClient, CachingInventoryDecorator>()`.
+The call chain is: **Logging -> Caching -> Retry -> BaseClient**. This means:
 
-## Combining with Polly for Resilience
+1. **Logging sees everything**, including cache hits. You get full observability.
+2. **Caching short-circuits before retry.** A cached response never triggers retries, saving network calls and latency.
+3. **Retry wraps only the actual HTTP call.** Transient failures are retried transparently.
 
-Polly's resilience pipeline IS a decorator chain over `HttpMessageHandler`:
+If you swap Caching and Retry (Logging -> Retry -> Caching -> Base), retries would re-check the cache on each attempt -- wasteful, since the cache does not change between retries.
+
+This repository's `ApiClientFactory` encapsulates the correct composition order:
 
 ```csharp
-services.AddHttpClient<IInventoryClient, HttpInventoryClient>()
-    .AddResilienceHandler("inventory", builder =>
-    {
-        builder.AddRetry(new RetryStrategyOptions<HttpResponseMessage>
-        {
-            MaxRetryAttempts = 3,
-            Delay = TimeSpan.FromMilliseconds(500),
-            BackoffType = DelayBackoffType.Exponential,
-            ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
-                .Handle<HttpRequestException>()
-                .HandleResult(r => r.StatusCode == HttpStatusCode.ServiceUnavailable)
-        });
-        builder.AddCircuitBreaker(new CircuitBreakerStrategyOptions<HttpResponseMessage>
-        {
-            FailureRatio = 0.5,
-            SamplingDuration = TimeSpan.FromSeconds(30),
-            BreakDuration = TimeSpan.FromSeconds(15)
-        });
-        builder.AddTimeout(TimeSpan.FromSeconds(10));
-    });
+public static IApiClient CreateResilientClient(
+    double failureRate = 0.0, int maxRetries = 3,
+    TimeSpan? cacheTtl = null, TimeSpan? retryBaseDelay = null)
+{
+    IApiClient client = new BaseApiClient(failureRate);
+    client = new RetryApiClientDecorator(client, maxRetries, retryBaseDelay);
+    client = new CachingApiClientDecorator(client, cacheTtl);
+    client = new LoggingApiClientDecorator(client);
+    return client;
+}
 ```
 
-Each `.Add*()` call wraps the previous handler -- classic Decorator.
+## Integration with ASP.NET Core DI
 
-## Production Lessons
+In production, decorators are registered through the DI container. The Scrutor library provides `Decorate<TInterface, TDecorator>()` for clean registration:
 
-**Order matters.** Logging should be outermost (logs everything including retries). Caching should be before retry (cache hits skip the network entirely). Retry should be before the real client.
+```csharp
+services.AddHttpClient<IApiClient, HttpApiClient>();
+services.Decorate<IApiClient, RetryApiClientDecorator>();
+services.Decorate<IApiClient, CachingApiClientDecorator>();
+services.Decorate<IApiClient, LoggingApiClientDecorator>();
+```
 
-**Test each decorator independently.** Mock the inner `IInventoryClient` and verify that the caching decorator returns cached values, the logging decorator logs correctly, and the retry decorator retries on specific exceptions.
+Without Scrutor, you can use factory registrations:
 
-**Monitor the decoration.** Add metrics at each layer. A high cache miss rate means your TTL is too short. A high retry count means the downstream service is unhealthy. These metrics come naturally from having separate decorators.
+```csharp
+services.AddSingleton<IApiClient>(sp =>
+{
+    IApiClient client = new HttpApiClient(sp.GetRequiredService<HttpClient>());
+    client = new RetryApiClientDecorator(client, maxRetries: 3);
+    client = new CachingApiClientDecorator(client, TimeSpan.FromMinutes(5));
+    client = new LoggingApiClientDecorator(client);
+    return client;
+});
+```
 
-**Know when to stop.** If you have 7 decorators stacked, debugging a failure requires tracing through 7 layers. Consider whether some concerns (metrics, logging) can be handled by middleware or interceptors at a higher level rather than per-service decorators.
+## Testing Decorators in Isolation
 
-The Decorator pattern turns resilience from a monolithic concern into a composable, testable, configurable set of behaviors. Each behavior is a single class with one responsibility, and the composition is explicit in your DI registration.
+Each decorator is independently testable. Pass a mock `IApiClient` as the inner component and verify the decorator's behavior:
+
+```csharp
+[Fact]
+public async Task CachingDecorator_ReturnsCachedResponse_OnSecondCall()
+{
+    var mockInner = new Mock<IApiClient>();
+    mockInner.Setup(c => c.GetAsync("https://api.example.com/data"))
+        .ReturnsAsync(new ApiResponse { StatusCode = 200, Body = "data" });
+
+    var decorator = new CachingApiClientDecorator(mockInner.Object, TimeSpan.FromMinutes(5));
+
+    await decorator.GetAsync("https://api.example.com/data"); // cache miss
+    await decorator.GetAsync("https://api.example.com/data"); // cache hit
+
+    mockInner.Verify(c => c.GetAsync(It.IsAny<string>()), Times.Once);
+}
+```
+
+The inner client is called exactly once. The second call is served from cache. No HTTP, no retry, no latency.
+
+## When to Use Decorator vs Polly vs HttpClientFactory
+
+**Use Decorator** when you want full control over the behavior, need to compose concerns beyond resilience (caching, authorization, transformation), or want to test each concern in isolation.
+
+**Use Polly** (or the .NET 8+ `Microsoft.Extensions.Resilience` package) when you primarily need resilience policies (retry, circuit breaker, timeout, hedging) and want battle-tested implementations with advanced features like bulkhead isolation.
+
+**Use HttpClientFactory** with `DelegatingHandler` when your decorators are HTTP-specific and you want integration with .NET's `HttpClient` lifecycle management.
+
+These approaches are not mutually exclusive. A decorator can use Polly internally for its retry logic while still providing the clean interface composition that the Decorator pattern offers.

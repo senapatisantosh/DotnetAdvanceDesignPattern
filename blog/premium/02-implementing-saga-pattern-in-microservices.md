@@ -1,123 +1,125 @@
-# Implementing the Saga Pattern in Microservices
+# Implementing the Saga Pattern for .NET Microservices
 
-When a single business operation spans multiple services -- placing an order that requires inventory reservation, payment processing, and shipping arrangement -- you cannot wrap everything in a database transaction. The Saga pattern provides the coordination you need through a sequence of local transactions with compensating actions.
+When you break a monolith into microservices, you lose the one thing that made data consistency easy: database transactions. An order placement that once lived inside a single `BEGIN TRANSACTION ... COMMIT` now spans inventory, payment, and shipping services -- each with its own database. The Saga pattern provides a disciplined way to maintain consistency without distributed transactions.
 
-## Why Not Distributed Transactions?
+## Why Distributed Transactions Are Not the Answer
 
-Two-Phase Commit (2PC) requires all participants to hold locks while the coordinator decides to commit or rollback. In a microservices architecture:
+Two-phase commit (2PC) requires every participant to lock resources and wait for a global coordinator. In practice, this means:
 
-- Services use different databases (PostgreSQL, MongoDB, DynamoDB) that may not support 2PC
-- Lock duration increases with network latency and service count
-- A single unavailable service blocks the entire transaction
-- Cloud-managed databases often do not expose 2PC interfaces
+- **Increased latency.** Every participant must acknowledge before any can commit.
+- **Reduced availability.** If the coordinator or any participant is unreachable, the entire transaction blocks.
+- **Vendor lock-in.** Most cloud-native databases (DynamoDB, Cosmos DB, Cloud Spanner) do not support 2PC across service boundaries.
 
-Sagas accept eventual consistency in exchange for availability and independence.
+Sagas replace the global lock with a sequence of local transactions. Each step commits independently. If a later step fails, compensating transactions undo the effects of earlier steps.
 
-## Orchestration: The Practical Approach
+## Orchestrator Pattern: Centralized Control
 
-An orchestrator coordinates the saga. It knows the steps, their order, and what to do when one fails.
+The orchestrator approach uses a central coordinator that knows the full workflow and drives each step in sequence. This is what this repository implements.
 
 ```csharp
-public class OrderFulfillmentSaga
+public interface ISagaStep
 {
-    private readonly SagaOrchestrator _orchestrator;
-
-    public OrderFulfillmentSaga(
-        IOrderValidator validator,
-        IInventoryService inventory,
-        IPaymentService payment,
-        IShippingService shipping)
-    {
-        _orchestrator = new SagaOrchestrator();
-        _orchestrator.AddStep(new ValidateOrderStep(validator));
-        _orchestrator.AddStep(new ReserveInventoryStep(inventory));
-        _orchestrator.AddStep(new ProcessPaymentStep(payment));
-        _orchestrator.AddStep(new ArrangeShippingStep(shipping));
-    }
+    string Name { get; }
+    Task<SagaStepResult> ExecuteAsync(SagaContext context, CancellationToken ct = default);
+    Task CompensateAsync(SagaContext context, CancellationToken ct = default);
 }
 ```
 
-Each step has an execute and compensate action. The orchestrator runs steps in order. If step 3 fails, it calls compensate on step 2, then step 1. Step 0 (validation) has no side effects, so its compensation is a no-op.
-
-## Designing Compensations
-
-Compensations are NOT rollbacks. They are new forward actions that semantically undo the effect:
-
-| Step | Execute | Compensate |
-|------|---------|------------|
-| Validate order | Check order details | No-op (no side effects) |
-| Reserve inventory | `POST /reservations` | `DELETE /reservations/{id}` |
-| Process payment | `POST /charges` | `POST /refunds` |
-| Arrange shipping | `POST /shipments` | `PUT /shipments/{id}/cancel` |
-
-Notice: you cannot "un-charge" a credit card. You issue a refund -- a new transaction. You cannot "un-send" a confirmation email. You send a correction email. Design compensations as new business actions.
-
-## The Idempotency Requirement
-
-Compensations (and executions) may run more than once due to retries. Every step MUST be idempotent:
+Every step has two methods: `ExecuteAsync` for the forward operation and `CompensateAsync` for the rollback. The orchestrator runs steps in order and reverses on failure:
 
 ```csharp
-public class ReserveInventoryStep : ISagaStep
-{
-    public async Task<SagaStepResult> ExecuteAsync(SagaContext context)
-    {
-        // Check if already reserved (idempotent)
-        var existingReservation = context.Get<string>("ReservationId");
-        if (existingReservation != null)
-            return SagaStepResult.Success(); // already done
+var saga = new SagaOrchestrator()
+    .AddStep(new ValidateOrderStep())
+    .AddStep(new ReserveInventoryStep())
+    .AddStep(new ProcessPaymentStep())
+    .AddStep(new ArrangeShippingStep());
 
-        var reservationId = await _inventory.ReserveAsync(context.Get<string>("OrderId"));
-        context.Set("ReservationId", reservationId);
-        return SagaStepResult.Success();
-    }
+var result = await saga.ExecuteAsync(context);
+```
+
+If `ProcessPayment` fails, the orchestrator calls `ReserveInventory.CompensateAsync()` to release the reserved stock, then `ValidateOrder.CompensateAsync()` (a no-op, since validation has no side effects). The result object records every completed step, every compensated step, and the failure reason.
+
+## Designing Compensation Logic
+
+Compensation is the hardest part of the Saga pattern. It requires careful thinking about what "undo" means for each operation.
+
+**Reversible operations** have straightforward compensations:
+- Reserve inventory -> Release inventory
+- Charge payment -> Issue refund
+- Create shipment -> Cancel shipment
+
+**Irreversible operations** require corrective actions instead of true reversals:
+- Send confirmation email -> Send cancellation email
+- Publish analytics event -> Publish correction event
+- Generate invoice -> Issue credit memo
+
+**Read-only operations** need no compensation at all:
+- Validate order data -> No side effects to undo
+- Check credit score -> No state change
+
+### Compensation Rules
+
+1. **Idempotency is mandatory.** A compensation may be retried if the first attempt fails partway. Refunding a payment twice must not double-charge the customer's account. Use idempotency keys.
+
+2. **Compensations must not throw.** If a compensation fails, the orchestrator logs the failure and continues compensating remaining steps. A thrown exception in compensation could leave the system in a worse state than doing nothing.
+
+3. **Order is reverse.** Compensations run in reverse order of execution. This ensures that dependencies are unwound correctly (you release inventory before un-validating the order, not the other way around).
+
+## Sharing State Between Steps
+
+Steps communicate through a `SagaContext` -- a key-value dictionary that flows through the entire saga:
+
+```csharp
+// Step 1 writes
+context.Set("OrderId", orderId);
+context.Set("TotalAmount", 299.99m);
+
+// Step 2 reads
+var orderId = context.Get<string>("OrderId");
+```
+
+This approach avoids coupling between steps. `ProcessPaymentStep` does not depend on `ReserveInventoryStep` directly -- it only depends on the keys that a prior step has set. This makes steps reusable across different saga compositions.
+
+## Combining Saga with the Outbox Pattern
+
+A saga step that commits to its local database and then publishes an event has a reliability gap: if the process crashes between the commit and the publish, the event is lost. The Outbox pattern closes this gap.
+
+Instead of publishing directly, each step writes the event to an outbox table within the same database transaction. A background processor polls the outbox and publishes pending messages to the broker:
+
+```csharp
+// Inside a saga step
+await _db.SaveChangesAsync(); // commits business data + outbox message atomically
+
+// Background processor (separate concern)
+var pending = await _outboxStore.GetPendingAsync(batchSize: 10);
+foreach (var message in pending)
+{
+    await _broker.PublishAsync(message.EventType, message.Payload);
+    await _outboxStore.MarkProcessedAsync(message.Id);
 }
 ```
 
-Without idempotency, a retry after a network timeout could reserve inventory twice or charge a customer twice.
-
-## Persistent Sagas for Long-Running Processes
-
-In-memory sagas work for operations that complete in seconds. For long-running sagas (travel booking, insurance claims, order fulfillment spanning days), the saga state must survive process restarts:
-
-```csharp
-public class SagaState
-{
-    public Guid SagaId { get; set; }
-    public string SagaType { get; set; }
-    public int CurrentStep { get; set; }
-    public SagaStatus Status { get; set; } // Running, Compensating, Completed, Failed
-    public string ContextJson { get; set; } // Serialized SagaContext
-    public DateTime StartedAt { get; set; }
-    public DateTime? CompletedAt { get; set; }
-}
-```
-
-A background worker polls for incomplete sagas and resumes them. This is where frameworks like MassTransit and NServiceBus provide significant value -- they handle saga persistence, message correlation, and timeout management.
-
-## Pairing Sagas with the Outbox
-
-Each saga step that communicates with an external service should use the Outbox pattern for reliable messaging. When the orchestrator tells a step to execute, the step writes its command to an outbox table. A background worker publishes it to the message broker. The response comes back as an event that advances the saga.
-
-This guarantees that no messages are lost between saga steps, even if the orchestrator process crashes.
+This guarantees at-least-once delivery. Consumers must be idempotent because a message may be delivered more than once if the processor crashes after publishing but before marking the message as processed.
 
 ## Monitoring and Observability
 
-Production sagas require monitoring:
+Production sagas need observability beyond simple logging:
 
-- **Saga duration:** How long does the average fulfillment saga take?
-- **Failure rate:** What percentage of sagas require compensation?
-- **Compensation success rate:** Are compensations succeeding on first attempt?
-- **Stuck sagas:** Any saga running longer than the expected maximum?
-- **Step-level timing:** Which step is the bottleneck?
+- **Saga duration metrics.** Track how long each saga takes end-to-end. A spike indicates a slow downstream service.
+- **Step-level timing.** Identify which step is the bottleneck.
+- **Compensation rate.** A high rate of compensations signals a systemic issue (payment provider degradation, inventory exhaustion).
+- **Dead-letter monitoring.** Outbox messages that exceed retry limits need alerting and manual resolution.
 
-Build a saga dashboard that shows active sagas, their current step, and any that are stuck in compensation. This visibility is essential for production support.
+The `SagaResult` in this repository provides the raw data for these metrics: `CompletedSteps`, `CompensatedSteps`, `FailedStep`, and `ErrorMessage`.
 
-## When NOT to Use Sagas
+## When to Use Saga vs Simpler Alternatives
 
-- All operations can run in a single database transaction
-- The process has only 1-2 steps where a simple try/catch is clearer
-- Steps cannot be compensated (if step 3 is "launch the missile," there is no compensation)
-- Strict isolation is required (other operations must not see intermediate state)
-- The team lacks the infrastructure for reliable messaging and idempotency
+| Scenario | Recommendation |
+|----------|---------------|
+| Single database, single service | Database transaction (`BEGIN ... COMMIT`) |
+| Two services, one can be eventually consistent | Domain Events with Outbox |
+| Multiple services, all must succeed or compensate | Saga Orchestrator |
+| Loose coupling, no central coordination needed | Saga Choreography (event-driven) |
+| Mission-critical with audit requirements | Saga Orchestrator + persistent state + Outbox |
 
-The Saga pattern adds meaningful complexity. Use it when distributed consistency is genuinely required, not as a default architecture for every multi-step process.
+The Saga pattern introduces real complexity: compensation logic, state management, failure handling, and idempotency requirements. Do not reach for it in a system where a simple database transaction would suffice. But when you genuinely need cross-service consistency, a well-implemented saga is far more reliable and maintainable than ad-hoc compensation scattered across services.

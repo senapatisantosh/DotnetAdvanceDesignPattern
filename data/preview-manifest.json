@@ -1,0 +1,342 @@
+{
+  "slug": "dotnet-advanced-design-patterns",
+  "generatedAt": "2026-04-12",
+  "previewItems": [
+    {
+      "contentKey": "architecture-overview",
+      "title": "Architecture Overview",
+      "routePath": "/project/dotnet-advanced-design-patterns/preview/architecture-overview",
+      "sourcePath": "docs/free/getting-started/01-architecture-overview.md",
+      "contentType": "doc"
+    },
+    {
+      "contentKey": "design-pattern-categories",
+      "title": "Design Pattern Categories",
+      "routePath": "/project/dotnet-advanced-design-patterns/preview/design-pattern-categories",
+      "sourcePath": "docs/free/getting-started/02-design-pattern-categories.md",
+      "contentType": "doc"
+    },
+    {
+      "contentKey": "pattern-selection-guide",
+      "title": "Pattern Selection Guide",
+      "routePath": "/project/dotnet-advanced-design-patterns/preview/pattern-selection-guide",
+      "sourcePath": "docs/free/guides/01-pattern-selection-guide.md",
+      "contentType": "doc"
+    },
+    {
+      "contentKey": "creational-patterns-summary",
+      "title": "Creational Patterns Summary",
+      "routePath": "/project/dotnet-advanced-design-patterns/preview/creational-patterns-summary",
+      "sourcePath": "docs/free/overview/01-creational-patterns-summary.md",
+      "contentType": "doc"
+    },
+    {
+      "contentKey": "structural-patterns-summary",
+      "title": "Structural Patterns Summary",
+      "routePath": "/project/dotnet-advanced-design-patterns/preview/structural-patterns-summary",
+      "sourcePath": "docs/free/overview/02-structural-patterns-summary.md",
+      "contentType": "doc"
+    },
+    {
+      "contentKey": "behavioral-patterns-summary",
+      "title": "Behavioral Patterns Summary",
+      "routePath": "/project/dotnet-advanced-design-patterns/preview/behavioral-patterns-summary",
+      "sourcePath": "docs/free/overview/03-behavioral-patterns-summary.md",
+      "contentType": "doc"
+    },
+    {
+      "contentKey": "enterprise-patterns-summary",
+      "title": "Enterprise Patterns Summary",
+      "routePath": "/project/dotnet-advanced-design-patterns/preview/enterprise-patterns-summary",
+      "sourcePath": "docs/free/overview/04-enterprise-patterns-summary.md",
+      "contentType": "doc"
+    },
+    {
+      "contentKey": "patterns-creational-index",
+      "title": "Creational Patterns Index",
+      "routePath": "/project/dotnet-advanced-design-patterns/preview/patterns-creational-index",
+      "sourcePath": "docs/free/patterns/creational/index.md",
+      "contentType": "doc"
+    },
+    {
+      "contentKey": "patterns-structural-index",
+      "title": "Structural Patterns Index",
+      "routePath": "/project/dotnet-advanced-design-patterns/preview/patterns-structural-index",
+      "sourcePath": "docs/free/patterns/structural/index.md",
+      "contentType": "doc"
+    },
+    {
+      "contentKey": "patterns-behavioral-index",
+      "title": "Behavioral Patterns Index",
+      "routePath": "/project/dotnet-advanced-design-patterns/preview/patterns-behavioral-index",
+      "sourcePath": "docs/free/patterns/behavioral/index.md",
+      "contentType": "doc"
+    },
+    {
+      "contentKey": "patterns-enterprise-index",
+      "title": "Enterprise Patterns Index",
+      "routePath": "/project/dotnet-advanced-design-patterns/preview/patterns-enterprise-index",
+      "sourcePath": "docs/free/patterns/enterprise/index.md",
+      "contentType": "doc"
+    },
+    {
+      "contentKey": "why-design-patterns-still-matter-in-dotnet-10",
+      "title": "Why Design Patterns Still Matter in .NET 10",
+      "routePath": "/project/dotnet-advanced-design-patterns/blog/why-design-patterns-still-matter-in-dotnet-10",
+      "sourcePath": "blog/public/01-why-design-patterns-still-matter-in-dotnet-10.md",
+      "contentType": "blog"
+    },
+    {
+      "contentKey": "top-5-patterns-every-dotnet-developer-should-know",
+      "title": "Top 5 Patterns Every .NET Developer Should Know",
+      "routePath": "/project/dotnet-advanced-design-patterns/blog/top-5-patterns-every-dotnet-developer-should-know",
+      "sourcePath": "blog/public/02-top-5-patterns-every-dotnet-developer-should-know.md",
+      "contentType": "blog"
+    },
+    {
+      "contentKey": "factory-method",
+      "title": "Factory Method Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/factory-method",
+      "sourcePath": "src/DesignPatterns.Creational/FactoryMethod/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "abstract-factory",
+      "title": "Abstract Factory Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/abstract-factory",
+      "sourcePath": "src/DesignPatterns.Creational/AbstractFactory/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "builder",
+      "title": "Builder Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/builder",
+      "sourcePath": "src/DesignPatterns.Creational/Builder/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "prototype",
+      "title": "Prototype Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/prototype",
+      "sourcePath": "src/DesignPatterns.Creational/Prototype/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "singleton",
+      "title": "Singleton Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/singleton",
+      "sourcePath": "src/DesignPatterns.Creational/Singleton/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "adapter",
+      "title": "Adapter Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/adapter",
+      "sourcePath": "src/DesignPatterns.Structural/Adapter/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "bridge",
+      "title": "Bridge Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/bridge",
+      "sourcePath": "src/DesignPatterns.Structural/Bridge/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "composite",
+      "title": "Composite Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/composite",
+      "sourcePath": "src/DesignPatterns.Structural/Composite/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "decorator",
+      "title": "Decorator Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/decorator",
+      "sourcePath": "src/DesignPatterns.Structural/Decorator/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "facade",
+      "title": "Facade Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/facade",
+      "sourcePath": "src/DesignPatterns.Structural/Facade/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "flyweight",
+      "title": "Flyweight Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/flyweight",
+      "sourcePath": "src/DesignPatterns.Structural/Flyweight/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "proxy",
+      "title": "Proxy Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/proxy",
+      "sourcePath": "src/DesignPatterns.Structural/Proxy/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "chain-of-responsibility",
+      "title": "Chain of Responsibility Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/chain-of-responsibility",
+      "sourcePath": "src/DesignPatterns.Behavioral/ChainOfResponsibility/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "command",
+      "title": "Command Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/command",
+      "sourcePath": "src/DesignPatterns.Behavioral/Command/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "interpreter",
+      "title": "Interpreter Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/interpreter",
+      "sourcePath": "src/DesignPatterns.Behavioral/Interpreter/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "iterator",
+      "title": "Iterator Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/iterator",
+      "sourcePath": "src/DesignPatterns.Behavioral/Iterator/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "mediator",
+      "title": "Mediator Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/mediator",
+      "sourcePath": "src/DesignPatterns.Behavioral/Mediator/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "memento",
+      "title": "Memento Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/memento",
+      "sourcePath": "src/DesignPatterns.Behavioral/Memento/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "observer",
+      "title": "Observer Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/observer",
+      "sourcePath": "src/DesignPatterns.Behavioral/Observer/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "state",
+      "title": "State Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/state",
+      "sourcePath": "src/DesignPatterns.Behavioral/State/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "strategy",
+      "title": "Strategy Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/strategy",
+      "sourcePath": "src/DesignPatterns.Behavioral/Strategy/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "template-method",
+      "title": "Template Method Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/template-method",
+      "sourcePath": "src/DesignPatterns.Behavioral/TemplateMethod/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "visitor",
+      "title": "Visitor Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/visitor",
+      "sourcePath": "src/DesignPatterns.Behavioral/Visitor/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "repository",
+      "title": "Repository Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/repository",
+      "sourcePath": "src/DesignPatterns.Enterprise/Repository/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "unit-of-work",
+      "title": "Unit of Work Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/unit-of-work",
+      "sourcePath": "src/DesignPatterns.Enterprise/UnitOfWork/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "specification",
+      "title": "Specification Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/specification",
+      "sourcePath": "src/DesignPatterns.Enterprise/Specification/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "result-pattern",
+      "title": "Result Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/result-pattern",
+      "sourcePath": "src/DesignPatterns.Enterprise/ResultPattern/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "cqrs",
+      "title": "CQRS Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/cqrs",
+      "sourcePath": "src/DesignPatterns.Enterprise/Cqrs/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "domain-events",
+      "title": "Domain Events Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/domain-events",
+      "sourcePath": "src/DesignPatterns.Enterprise/DomainEvents/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "outbox",
+      "title": "Outbox Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/outbox",
+      "sourcePath": "src/DesignPatterns.Enterprise/Outbox/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "null-object",
+      "title": "Null Object Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/null-object",
+      "sourcePath": "src/DesignPatterns.Enterprise/NullObject/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "value-object",
+      "title": "Value Object Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/value-object",
+      "sourcePath": "src/DesignPatterns.Enterprise/ValueObject/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "saga",
+      "title": "Saga Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/saga",
+      "sourcePath": "src/DesignPatterns.Enterprise/Saga/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "options-pattern",
+      "title": "Options Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/options-pattern",
+      "sourcePath": "src/DesignPatterns.Enterprise/OptionsPattern/README.md",
+      "contentType": "code-readme"
+    },
+    {
+      "contentKey": "policy-pattern",
+      "title": "Policy Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/code/policy-pattern",
+      "sourcePath": "src/DesignPatterns.Enterprise/PolicyPattern/README.md",
+      "contentType": "code-readme"
+    }
+  ]
+}

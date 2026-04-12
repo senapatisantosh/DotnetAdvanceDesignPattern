@@ -1,0 +1,134 @@
+{
+  "slug": "dotnet-advanced-design-patterns",
+  "generatedAt": "2026-04-12",
+  "premiumItems": [
+    {
+      "contentKey": "factory-method-deep-dive",
+      "title": "Factory Method Deep Dive",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/factory-method-deep-dive",
+      "sourcePath": "docs/premium/deep-dive/creational/01-factory-method-deep-dive.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/deep-dive-creational/01-factory-method-deep-dive.md"
+    },
+    {
+      "contentKey": "builder-patterns-deep-dive",
+      "title": "Builder Patterns Deep Dive",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/builder-patterns-deep-dive",
+      "sourcePath": "docs/premium/deep-dive/creational/02-builder-patterns-deep-dive.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/deep-dive-creational/02-builder-patterns-deep-dive.md"
+    },
+    {
+      "contentKey": "decorator-vs-proxy-deep-dive",
+      "title": "Decorator vs Proxy Deep Dive",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/decorator-vs-proxy-deep-dive",
+      "sourcePath": "docs/premium/deep-dive/structural/01-decorator-vs-proxy-deep-dive.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/deep-dive-structural/01-decorator-vs-proxy-deep-dive.md"
+    },
+    {
+      "contentKey": "adapter-bridge-facade-deep-dive",
+      "title": "Adapter, Bridge & Facade Deep Dive",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/adapter-bridge-facade-deep-dive",
+      "sourcePath": "docs/premium/deep-dive/structural/02-adapter-bridge-facade-deep-dive.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/deep-dive-structural/02-adapter-bridge-facade-deep-dive.md"
+    },
+    {
+      "contentKey": "strategy-vs-state-deep-dive",
+      "title": "Strategy vs State Deep Dive",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/strategy-vs-state-deep-dive",
+      "sourcePath": "docs/premium/deep-dive/behavioral/01-strategy-vs-state-deep-dive.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/deep-dive-behavioral/01-strategy-vs-state-deep-dive.md"
+    },
+    {
+      "contentKey": "command-cor-mediator-deep-dive",
+      "title": "Command, Chain of Responsibility & Mediator Deep Dive",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/command-cor-mediator-deep-dive",
+      "sourcePath": "docs/premium/deep-dive/behavioral/02-command-cor-mediator-deep-dive.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/deep-dive-behavioral/02-command-cor-mediator-deep-dive.md"
+    },
+    {
+      "contentKey": "observer-domain-events-deep-dive",
+      "title": "Observer & Domain Events Deep Dive",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/observer-domain-events-deep-dive",
+      "sourcePath": "docs/premium/deep-dive/behavioral/03-observer-domain-events-deep-dive.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/deep-dive-behavioral/03-observer-domain-events-deep-dive.md"
+    },
+    {
+      "contentKey": "cqrs-implementation-guide",
+      "title": "CQRS Implementation Guide",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/cqrs-implementation-guide",
+      "sourcePath": "docs/premium/deep-dive/enterprise/01-cqrs-implementation-guide.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/deep-dive-enterprise/01-cqrs-implementation-guide.md"
+    },
+    {
+      "contentKey": "saga-outbox-deep-dive",
+      "title": "Saga & Outbox Deep Dive",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/saga-outbox-deep-dive",
+      "sourcePath": "docs/premium/deep-dive/enterprise/02-saga-outbox-deep-dive.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/deep-dive-enterprise/02-saga-outbox-deep-dive.md"
+    },
+    {
+      "contentKey": "repository-specification-deep-dive",
+      "title": "Repository & Specification Deep Dive",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/repository-specification-deep-dive",
+      "sourcePath": "docs/premium/deep-dive/enterprise/03-repository-specification-deep-dive.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/deep-dive-enterprise/03-repository-specification-deep-dive.md"
+    },
+    {
+      "contentKey": "anti-patterns",
+      "title": "Anti-Patterns",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/anti-patterns",
+      "sourcePath": "docs/premium/architecture/01-anti-patterns.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/architecture/01-anti-patterns.md"
+    },
+    {
+      "contentKey": "interview-revision-cheatsheet",
+      "title": "Interview Revision Cheatsheet",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/interview-revision-cheatsheet",
+      "sourcePath": "docs/premium/interview/01-interview-revision-cheatsheet.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/interview/01-interview-revision-cheatsheet.md"
+    },
+    {
+      "contentKey": "decision-matrix",
+      "title": "Decision Matrix",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/decision-matrix",
+      "sourcePath": "docs/premium/cheatsheets/01-decision-matrix.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/cheatsheets/01-decision-matrix.md"
+    },
+    {
+      "contentKey": "comparison-maps",
+      "title": "Comparison Maps",
+      "routePath": "/project/dotnet-advanced-design-patterns/learn/comparison-maps",
+      "sourcePath": "docs/premium/cheatsheets/02-comparison-maps.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/cheatsheets/02-comparison-maps.md"
+    },
+    {
+      "contentKey": "building-resilient-apis-with-decorator-pattern",
+      "title": "Building Resilient APIs with Decorator Pattern",
+      "routePath": "/project/dotnet-advanced-design-patterns/blog/building-resilient-apis-with-decorator-pattern",
+      "sourcePath": "blog/premium/01-building-resilient-apis-with-decorator-pattern.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/blog-premium/01-building-resilient-apis-with-decorator-pattern.md"
+    },
+    {
+      "contentKey": "implementing-saga-pattern-in-microservices",
+      "title": "Implementing Saga Pattern in Microservices",
+      "routePath": "/project/dotnet-advanced-design-patterns/blog/implementing-saga-pattern-in-microservices",
+      "sourcePath": "blog/premium/02-implementing-saga-pattern-in-microservices.md",
+      "sourceType": "same_repo",
+      "migrationTargetPath": "premium/dotnet-advanced-design-patterns/docs/blog-premium/02-implementing-saga-pattern-in-microservices.md"
+    }
+  ]
+}
