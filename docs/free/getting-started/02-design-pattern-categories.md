@@ -1,3 +1,17 @@
+---
+title: "Design Pattern Categories"
+contentKey: "design-pattern-categories"
+section: "getting-started"
+accessLevel: "free"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "categories", "getting-started"]
+order: 2
+sourceType: "same_repo"
+sourcePath: "docs/free/getting-started/02-design-pattern-categories.md"
+routePath: "/project/dotnet-advanced-design-patterns/preview/design-pattern-categories"
+isPublished: true
+---
+
 # Design Pattern Categories
 
 This document explains the four categories of design patterns covered in this repository: the three classic **GoF (Gang of Four)** categories plus **Enterprise/Practical** patterns used in production .NET applications.

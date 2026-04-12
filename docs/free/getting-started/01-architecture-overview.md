@@ -1,3 +1,17 @@
+---
+title: "Architecture Overview"
+contentKey: "architecture-overview"
+section: "getting-started"
+accessLevel: "free"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "architecture", "getting-started"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "docs/free/getting-started/01-architecture-overview.md"
+routePath: "/project/dotnet-advanced-design-patterns/preview/architecture-overview"
+isPublished: true
+---
+
 # Architecture Overview
 
 This document describes the high-level architecture of the repository, explains how the projects relate to each other, and maps the connections between design patterns.
