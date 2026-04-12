@@ -1,48 +1,82 @@
 # Why Design Patterns Still Matter in .NET 10
 
-Design patterns have been around since the Gang of Four published their book in 1994. Thirty years later, some developers argue they are outdated. With .NET 10 bringing features like improved keyed DI services, enhanced minimal APIs, and native AOT compilation, it is tempting to think that modern frameworks have made patterns obsolete. They have not -- but the way we apply them has changed dramatically.
+"Design patterns are outdated." You hear this every year, and every year it is wrong. Patterns are not rigid templates from a 1994 textbook -- they are a shared vocabulary for solving recurring problems. What changes is how we implement them. Modern C# makes patterns more concise, more type-safe, and easier to compose than ever before.
 
-## Patterns Are Not About the Code
+## Patterns Are a Language, Not a Library
 
-The most common misconception is that design patterns are code templates you copy and paste. They are not. Patterns are **vocabulary for design decisions**. When a senior engineer says "we need a Strategy here," the entire team immediately understands the intent, the structure, and the trade-offs. That shared vocabulary is as valuable in 2026 as it was in 1994.
+The primary value of design patterns is communication. When a senior developer says "we used Strategy for the pricing engine," every .NET developer on the team immediately understands: there is an interface, multiple implementations, and the client selects which one to use. No one needs to read the implementation to grasp the architecture.
 
-## What Has Changed in Modern .NET
+Without this shared vocabulary, code reviews devolve into paragraph-long explanations of what amounts to a well-known structure. Patterns compress communication.
 
-### Dependency Injection Replaced Manual Wiring
+## How Modern C# Transforms Pattern Implementations
 
-The Singleton pattern no longer requires a static `Instance` property. You write `services.AddSingleton<T>()` and the DI container handles lifetime, thread safety, and disposal. Factory Method no longer requires inheritance hierarchies -- keyed services in .NET 8+ let you register multiple implementations and resolve by key.
+C# has evolved dramatically since the GoF book. Features introduced in recent versions make patterns more expressive with less ceremony.
 
-### LINQ and Records Absorbed Several Patterns
+**Records replace boilerplate value objects.** The Value Object pattern once required overriding `Equals`, `GetHashCode`, and `ToString`. Now it is a single line:
 
-Iterator is built into `IEnumerable<T>`. Value Object semantics come nearly free with `record` types. Builder patterns are less necessary when records with `with` expressions provide immutable copying with modifications.
+```csharp
+public sealed record Money(decimal Amount, string Currency);
+```
 
-### Middleware IS Chain of Responsibility
+**Pattern matching replaces visitor chains.** The Visitor pattern's double-dispatch mechanism is still useful for extensibility, but simple type-based dispatch is cleaner with `switch` expressions:
 
-ASP.NET Core's middleware pipeline is Chain of Responsibility. You do not need to implement the pattern from scratch -- you need to understand the pattern to use middleware effectively. Knowing that middleware can short-circuit, that order matters, and that each layer wraps the next comes from understanding CoR.
+```csharp
+decimal CalculateTax(Transaction t) => t switch
+{
+    DomesticSale d => d.Amount * 0.08m,
+    InternationalSale i => i.Amount * i.CountryTaxRate,
+    Refund r => -r.OriginalTax,
+    _ => throw new ArgumentException($"Unknown transaction type: {t.GetType().Name}")
+};
+```
 
-## The Patterns That Matter Most in 2026
+**Primary constructors reduce Decorator noise.** Decorators wrap an inner component. Primary constructors eliminate the constructor-and-field boilerplate:
 
-### For API Development
-- **Decorator** for composable cross-cutting concerns (logging, retry, caching around HTTP clients)
-- **Strategy** for swappable business logic (pricing, validation, notification channels)
-- **Result Pattern** for explicit error handling without exceptions
+```csharp
+public sealed class RetryApiClientDecorator(IApiClient inner, int maxRetries = 3) : IApiClient
+{
+    public async Task<ApiResponse> GetAsync(string url) =>
+        await ExecuteWithRetryAsync(() => inner.GetAsync(url));
+}
+```
 
-### For Domain-Driven Design
-- **Repository + Specification** for testable, composable data access
-- **Domain Events + Outbox** for reliable side effects in distributed systems
-- **Value Object** (now easier than ever with records) for eliminating primitive obsession
+**Generic math and static interface members enable type-safe Strategy.** The `IParsable<T>` and `INumber<T>` interfaces allow strategies to operate on generic numeric types without boxing.
 
-### For Microservices
-- **CQRS** for separating read/write concerns at scale
-- **Saga** for distributed transaction coordination
-- **Facade** for API gateway aggregation
+## The Anti-Pattern Trap
 
-## The Anti-Pattern: Pattern Obsession
+Knowing patterns is useful. Knowing when NOT to use them is essential. Here are the most common over-applications:
 
-The most important thing patterns teach is **when NOT to use them**. A simple CRUD endpoint does not need a Factory, Repository, Specification, Unit of Work, Domain Event, and Outbox. It needs a controller that calls `DbContext.SaveChanges()`. Pattern obsession -- applying patterns where they add no value -- is the single biggest source of over-engineering in .NET codebases.
+- **Strategy with one implementation.** If there is only one pricing strategy today and no realistic prospect of a second, a direct method call is simpler. Add the pattern when the second variant appears.
+- **Factory for trivial construction.** If `new CustomerService()` has no parameters and no variants, a factory is overhead.
+- **Repository wrapping DbContext.** If your repository methods are one-line delegations to EF Core, the abstraction provides no value.
+- **Mediator for everything.** Using MediatR to mediate between a controller and a single handler adds a layer of indirection without decoupling anything meaningful.
 
-## The Bottom Line
+The best engineers apply patterns surgically. They recognize the problem first, then reach for the pattern -- never the other way around.
 
-Design patterns in .NET 10 are not about implementing classic GoF code structures. They are about understanding the **principles** behind those structures -- separation of concerns, programming to interfaces, favoring composition over inheritance -- and applying them using modern .NET idioms. The developer who understands why Decorator exists will use Polly's resilience pipeline effectively. The developer who understands CQRS will design better APIs even without a formal CQRS framework.
+## Five Patterns Every .NET Developer Should Start With
 
-Patterns are not outdated. Our implementations of them have simply matured.
+1. **Strategy** -- Swap algorithms at runtime. Used everywhere from pricing engines to validation pipelines.
+2. **Decorator** -- Add behavior without modifying existing code. Logging, caching, retry, and circuit breaking all compose naturally as decorators.
+3. **Factory Method** -- Centralize object creation. Useful whenever construction logic involves conditional decisions or configuration.
+4. **Observer / Domain Events** -- Decouple producers from consumers. The foundation of event-driven architecture.
+5. **Result Pattern** -- Replace exceptions for expected failures. Makes error handling explicit in the type system.
+
+These five patterns cover the vast majority of design decisions you will face in production .NET code.
+
+## How This Repository Helps
+
+This repository provides production-quality implementations of each pattern, not toy examples. The Strategy pattern uses a real pricing engine with five strategies. The Decorator pattern wraps an API client with logging, caching, and retry. The Saga pattern models a complete order fulfillment workflow with compensation logic.
+
+Every implementation includes:
+- Interfaces that follow .NET naming conventions
+- Async support with `CancellationToken`
+- Thread-safe implementations where concurrency matters
+- Tests that verify both the happy path and edge cases
+
+Patterns are best learned by reading and modifying real code. Clone the repository, run the tests, and start experimenting.
+
+## Patterns Are a Starting Point, Not a Destination
+
+The GoF patterns are 30 years old. The enterprise patterns in this repository -- CQRS, Saga, Outbox, Domain Events -- emerged from real production systems in the decades since. New patterns will continue to emerge as architecture evolves.
+
+What remains constant is the discipline: identify a recurring problem, name it, document its trade-offs, and share the solution with your team. That is what design patterns are, and that is why they still matter.

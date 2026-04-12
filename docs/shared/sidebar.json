@@ -1,0 +1,140 @@
+{
+  "sections": [
+    {
+      "title": "Getting Started",
+      "icon": "rocket",
+      "items": [
+        { "contentKey": "architecture-overview", "title": "Architecture Overview", "accessLevel": "free" },
+        { "contentKey": "design-pattern-categories", "title": "Design Pattern Categories", "accessLevel": "free" }
+      ]
+    },
+    {
+      "title": "Pattern Overviews",
+      "icon": "book",
+      "items": [
+        { "contentKey": "creational-patterns-summary", "title": "Creational Patterns Summary", "accessLevel": "free" },
+        { "contentKey": "structural-patterns-summary", "title": "Structural Patterns Summary", "accessLevel": "free" },
+        { "contentKey": "behavioral-patterns-summary", "title": "Behavioral Patterns Summary", "accessLevel": "free" },
+        { "contentKey": "enterprise-patterns-summary", "title": "Enterprise Patterns Summary", "accessLevel": "free" }
+      ]
+    },
+    {
+      "title": "Guides",
+      "icon": "compass",
+      "items": [
+        { "contentKey": "pattern-selection-guide", "title": "Pattern Selection Guide", "accessLevel": "free" },
+        { "contentKey": "patterns-creational-index", "title": "Creational Patterns Index", "accessLevel": "free" },
+        { "contentKey": "patterns-structural-index", "title": "Structural Patterns Index", "accessLevel": "free" },
+        { "contentKey": "patterns-behavioral-index", "title": "Behavioral Patterns Index", "accessLevel": "free" },
+        { "contentKey": "patterns-enterprise-index", "title": "Enterprise Patterns Index", "accessLevel": "free" }
+      ]
+    },
+    {
+      "title": "Creational Patterns",
+      "icon": "puzzle",
+      "items": [
+        { "contentKey": "factory-method", "title": "Factory Method Pattern", "accessLevel": "free" },
+        { "contentKey": "abstract-factory", "title": "Abstract Factory Pattern", "accessLevel": "free" },
+        { "contentKey": "builder", "title": "Builder Pattern", "accessLevel": "free" },
+        { "contentKey": "prototype", "title": "Prototype Pattern", "accessLevel": "free" },
+        { "contentKey": "singleton", "title": "Singleton Pattern", "accessLevel": "free" }
+      ]
+    },
+    {
+      "title": "Structural Patterns",
+      "icon": "layers",
+      "items": [
+        { "contentKey": "adapter", "title": "Adapter Pattern", "accessLevel": "free" },
+        { "contentKey": "bridge", "title": "Bridge Pattern", "accessLevel": "free" },
+        { "contentKey": "composite", "title": "Composite Pattern", "accessLevel": "free" },
+        { "contentKey": "decorator", "title": "Decorator Pattern", "accessLevel": "free" },
+        { "contentKey": "facade", "title": "Facade Pattern", "accessLevel": "free" },
+        { "contentKey": "flyweight", "title": "Flyweight Pattern", "accessLevel": "free" },
+        { "contentKey": "proxy", "title": "Proxy Pattern", "accessLevel": "free" }
+      ]
+    },
+    {
+      "title": "Behavioral Patterns",
+      "icon": "arrows",
+      "items": [
+        { "contentKey": "chain-of-responsibility", "title": "Chain of Responsibility Pattern", "accessLevel": "free" },
+        { "contentKey": "command", "title": "Command Pattern", "accessLevel": "free" },
+        { "contentKey": "interpreter", "title": "Interpreter Pattern", "accessLevel": "free" },
+        { "contentKey": "iterator", "title": "Iterator Pattern", "accessLevel": "free" },
+        { "contentKey": "mediator", "title": "Mediator Pattern", "accessLevel": "free" },
+        { "contentKey": "memento", "title": "Memento Pattern", "accessLevel": "free" },
+        { "contentKey": "observer", "title": "Observer Pattern", "accessLevel": "free" },
+        { "contentKey": "state", "title": "State Pattern", "accessLevel": "free" },
+        { "contentKey": "strategy", "title": "Strategy Pattern", "accessLevel": "free" },
+        { "contentKey": "template-method", "title": "Template Method Pattern", "accessLevel": "free" },
+        { "contentKey": "visitor", "title": "Visitor Pattern", "accessLevel": "free" }
+      ]
+    },
+    {
+      "title": "Enterprise Patterns",
+      "icon": "building",
+      "items": [
+        { "contentKey": "repository", "title": "Repository Pattern", "accessLevel": "free" },
+        { "contentKey": "unit-of-work", "title": "Unit of Work Pattern", "accessLevel": "free" },
+        { "contentKey": "specification", "title": "Specification Pattern", "accessLevel": "free" },
+        { "contentKey": "result-pattern", "title": "Result Pattern", "accessLevel": "free" },
+        { "contentKey": "cqrs", "title": "CQRS Pattern", "accessLevel": "free" },
+        { "contentKey": "domain-events", "title": "Domain Events Pattern", "accessLevel": "free" },
+        { "contentKey": "outbox", "title": "Outbox Pattern", "accessLevel": "free" },
+        { "contentKey": "null-object", "title": "Null Object Pattern", "accessLevel": "free" },
+        { "contentKey": "value-object", "title": "Value Object Pattern", "accessLevel": "free" },
+        { "contentKey": "saga", "title": "Saga Pattern", "accessLevel": "free" },
+        { "contentKey": "options-pattern", "title": "Options Pattern", "accessLevel": "free" },
+        { "contentKey": "policy-pattern", "title": "Policy Pattern", "accessLevel": "free" }
+      ]
+    },
+    {
+      "title": "Deep Dives",
+      "icon": "microscope",
+      "items": [
+        { "contentKey": "factory-method-deep-dive", "title": "Factory Method Deep Dive", "accessLevel": "premium" },
+        { "contentKey": "builder-patterns-deep-dive", "title": "Builder Patterns Deep Dive", "accessLevel": "premium" },
+        { "contentKey": "decorator-vs-proxy-deep-dive", "title": "Decorator vs Proxy Deep Dive", "accessLevel": "premium" },
+        { "contentKey": "adapter-bridge-facade-deep-dive", "title": "Adapter, Bridge & Facade Deep Dive", "accessLevel": "premium" },
+        { "contentKey": "strategy-vs-state-deep-dive", "title": "Strategy vs State Deep Dive", "accessLevel": "premium" },
+        { "contentKey": "command-cor-mediator-deep-dive", "title": "Command, Chain of Responsibility & Mediator Deep Dive", "accessLevel": "premium" },
+        { "contentKey": "observer-domain-events-deep-dive", "title": "Observer & Domain Events Deep Dive", "accessLevel": "premium" },
+        { "contentKey": "cqrs-implementation-guide", "title": "CQRS Implementation Guide", "accessLevel": "premium" },
+        { "contentKey": "saga-outbox-deep-dive", "title": "Saga & Outbox Deep Dive", "accessLevel": "premium" },
+        { "contentKey": "repository-specification-deep-dive", "title": "Repository & Specification Deep Dive", "accessLevel": "premium" }
+      ]
+    },
+    {
+      "title": "Architecture",
+      "icon": "blueprint",
+      "items": [
+        { "contentKey": "anti-patterns", "title": "Anti-Patterns", "accessLevel": "premium" }
+      ]
+    },
+    {
+      "title": "Interview Prep",
+      "icon": "graduation",
+      "items": [
+        { "contentKey": "interview-revision-cheatsheet", "title": "Interview Revision Cheatsheet", "accessLevel": "premium" }
+      ]
+    },
+    {
+      "title": "Cheat Sheets",
+      "icon": "zap",
+      "items": [
+        { "contentKey": "decision-matrix", "title": "Decision Matrix", "accessLevel": "premium" },
+        { "contentKey": "comparison-maps", "title": "Comparison Maps", "accessLevel": "premium" }
+      ]
+    },
+    {
+      "title": "Blog",
+      "icon": "pen",
+      "items": [
+        { "contentKey": "why-design-patterns-still-matter-in-dotnet-10", "title": "Why Design Patterns Still Matter in .NET 10", "accessLevel": "free" },
+        { "contentKey": "top-5-patterns-every-dotnet-developer-should-know", "title": "Top 5 Patterns Every .NET Developer Should Know", "accessLevel": "free" },
+        { "contentKey": "building-resilient-apis-with-decorator-pattern", "title": "Building Resilient APIs with Decorator Pattern", "accessLevel": "premium" },
+        { "contentKey": "implementing-saga-pattern-in-microservices", "title": "Implementing Saga Pattern in Microservices", "accessLevel": "premium" }
+      ]
+    }
+  ]
+}
