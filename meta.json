@@ -1,0 +1,71 @@
+{
+  "title": ".NET 10 Advanced Design Patterns",
+  "slug": "dotnet-advanced-design-patterns",
+  "shortDescription": "35+ production-style design patterns in .NET 10/C# 13 with realistic business scenarios, unit tests, and comprehensive documentation.",
+  "category": "software-architecture",
+  "level": "intermediate-to-advanced",
+  "tags": ["dotnet", "csharp", "design-patterns", "software-architecture", "clean-code", "gof-patterns", "enterprise-patterns", "interview-prep"],
+  "framework": ".NET 10",
+  "language": "C# 13",
+  "banner": "assets/banner.webp",
+  "thumbnail": "assets/thumbnail.webp",
+  "publicRepoUrl": "https://github.com/senapatisantosh/DotnetAdvanceDesignPattern",
+  "premiumSourceType": "same_repo",
+  "premiumSourceRef": "docs/premium",
+  "previewDocPaths": [
+    "docs/free/getting-started/01-architecture-overview.md",
+    "docs/free/getting-started/02-design-pattern-categories.md",
+    "docs/free/overview/01-creational-patterns-summary.md",
+    "docs/free/overview/02-structural-patterns-summary.md",
+    "docs/free/overview/03-behavioral-patterns-summary.md",
+    "docs/free/overview/04-enterprise-patterns-summary.md",
+    "docs/free/guides/01-pattern-selection-guide.md",
+    "docs/free/patterns/creational/index.md",
+    "docs/free/patterns/structural/index.md",
+    "docs/free/patterns/behavioral/index.md",
+    "docs/free/patterns/enterprise/index.md"
+  ],
+  "premiumDocPaths": [
+    "docs/premium/deep-dive/creational/01-factory-method-deep-dive.md",
+    "docs/premium/deep-dive/creational/02-builder-patterns-deep-dive.md",
+    "docs/premium/deep-dive/structural/01-decorator-vs-proxy-deep-dive.md",
+    "docs/premium/deep-dive/structural/02-adapter-bridge-facade-deep-dive.md",
+    "docs/premium/deep-dive/behavioral/01-strategy-vs-state-deep-dive.md",
+    "docs/premium/deep-dive/behavioral/02-command-cor-mediator-deep-dive.md",
+    "docs/premium/deep-dive/behavioral/03-observer-domain-events-deep-dive.md",
+    "docs/premium/deep-dive/enterprise/01-cqrs-implementation-guide.md",
+    "docs/premium/deep-dive/enterprise/02-saga-outbox-deep-dive.md",
+    "docs/premium/deep-dive/enterprise/03-repository-specification-deep-dive.md",
+    "docs/premium/architecture/01-anti-patterns.md",
+    "docs/premium/interview/01-interview-revision-cheatsheet.md",
+    "docs/premium/cheatsheets/01-decision-matrix.md",
+    "docs/premium/cheatsheets/02-comparison-maps.md"
+  ],
+  "publicBlogPaths": [
+    "blog/public/01-why-design-patterns-still-matter-in-dotnet-10.md",
+    "blog/public/02-top-5-patterns-every-dotnet-developer-should-know.md"
+  ],
+  "premiumBlogPaths": [
+    "blog/premium/01-building-resilient-apis-with-decorator-pattern.md",
+    "blog/premium/02-implementing-saga-pattern-in-microservices.md"
+  ],
+  "sampleCodePaths": [
+    "src/DesignPatterns.Creational",
+    "src/DesignPatterns.Structural",
+    "src/DesignPatterns.Behavioral",
+    "src/DesignPatterns.Enterprise",
+    "src/DesignPatterns.Shared",
+    "src/DesignPatterns.Playground"
+  ],
+  "premiumCodePaths": [],
+  "testPaths": [
+    "tests/DesignPatterns.Creational.Tests",
+    "tests/DesignPatterns.Structural.Tests",
+    "tests/DesignPatterns.Behavioral.Tests",
+    "tests/DesignPatterns.Enterprise.Tests"
+  ],
+  "status": "published",
+  "version": "1.0.0",
+  "patternCount": 35,
+  "lastUpdated": "2026-04-12"
+}
