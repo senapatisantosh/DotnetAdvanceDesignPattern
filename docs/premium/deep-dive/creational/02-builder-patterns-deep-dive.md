@@ -1,3 +1,18 @@
+---
+title: "Builder Patterns Deep Dive"
+contentKey: "builder-patterns-deep-dive"
+section: "deep-dive-creational"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "builder", "creational", "deep-dive"]
+order: 2
+sourceType: "same_repo"
+sourcePath: "docs/premium/deep-dive/creational/02-builder-patterns-deep-dive.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/builder-patterns-deep-dive"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/deep-dive/creational/02-builder-patterns-deep-dive.md"
+isPublished: true
+---
+
 # Deep Dive: Classic vs Fluent vs Step Builder
 
 The Builder pattern has evolved significantly in modern C#. This guide compares three variants, analyzes their trade-offs, and provides production guidance for choosing the right one.

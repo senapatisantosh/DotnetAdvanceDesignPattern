@@ -1,3 +1,18 @@
+---
+title: "Decorator vs Proxy Deep Dive"
+contentKey: "decorator-vs-proxy-deep-dive"
+section: "deep-dive-structural"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "decorator", "proxy", "structural", "deep-dive"]
+order: 1
+sourceType: "same_repo"
+sourcePath: "docs/premium/deep-dive/structural/01-decorator-vs-proxy-deep-dive.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/decorator-vs-proxy-deep-dive"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/deep-dive/structural/01-decorator-vs-proxy-deep-dive.md"
+isPublished: true
+---
+
 # Deep Dive: Decorator vs Proxy
 
 Decorator and Proxy are the two most commonly conflated structural patterns. Both wrap an object behind the same interface, but their intent and usage differ fundamentally. This guide resolves the confusion with production examples from this repository.

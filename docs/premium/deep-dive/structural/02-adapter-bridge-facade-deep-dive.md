@@ -1,3 +1,18 @@
+---
+title: "Adapter, Bridge, and Facade Deep Dive"
+contentKey: "adapter-bridge-facade-deep-dive"
+section: "deep-dive-structural"
+accessLevel: "premium"
+contentType: "doc"
+tags: ["dotnet", "design-patterns", "adapter", "bridge", "facade", "structural", "deep-dive"]
+order: 2
+sourceType: "same_repo"
+sourcePath: "docs/premium/deep-dive/structural/02-adapter-bridge-facade-deep-dive.md"
+routePath: "/project/dotnet-advanced-design-patterns/learn/adapter-bridge-facade-deep-dive"
+migrationTargetPath: "premium/dotnet-advanced-design-patterns/docs/deep-dive/structural/02-adapter-bridge-facade-deep-dive.md"
+isPublished: true
+---
+
 # Deep Dive: Adapter vs Bridge vs Facade -- The Structural Pattern Confusion Resolver
 
 Adapter, Bridge, and Facade are the three structural patterns most frequently confused in interviews and code reviews. All three deal with interfaces and indirection, but they solve fundamentally different problems at different points in the design lifecycle.
